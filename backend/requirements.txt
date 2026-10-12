@@ -2,10 +2,10 @@
 fastapi==0.110.0
 uvicorn==0.27.1
 
-# AI & Multi-Agent Logic
-google-genai==0.2.1
+# AI SDK (Switched to standard library to fix websockets conflict)
+google-generativeai==0.8.3
 
-# Data Validation & Schema Enforcement
+# Data Validation
 pydantic==2.6.3
 pydantic-settings==2.2.1
 
