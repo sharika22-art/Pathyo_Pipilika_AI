@@ -1,0 +1,13 @@
+# Web Framework & Server
+fastapi==0.110.0
+uvicorn==0.27.1
+
+# AI & Multi-Agent Logic
+google-genai==0.2.1
+
+# Data Validation & Schema Enforcement
+pydantic==2.6.3
+pydantic-settings==2.2.1
+
+# Database
+supabase==2.3.4
