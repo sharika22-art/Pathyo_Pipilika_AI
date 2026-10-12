@@ -1,7 +1,6 @@
 import os
 from pydantic import BaseModel, Field
-from google import genai
-from google.genai import types
+import google.generativeai as genai
 
 # 1. Initialize the client
 client = genai.Client()
