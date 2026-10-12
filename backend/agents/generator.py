@@ -46,17 +46,16 @@ def generate_quiz(grade: str, subject: str, chapter: str, difficulty: str) -> st
     """
 
     try:
-        # 3. Call the model and enforce the schema
-        response = client.models.generate_content(
-            model='gemini-1.5-flash',
-            contents=prompt,
-            config=types.GenerateContentConfig(
+        # Call the Gemini 1.5 Flash model using the standard SDK
+        model = genai.GenerativeModel('gemini-1.5-flash')
+        response = model.generate_content(
+            prompt,
+            generation_config=genai.GenerationConfig(
                 response_mime_type="application/json",
                 response_schema=QuizResult,
                 temperature=0.7 
-            ),
+            )
         )
-        
         return response.text
         
     except Exception as e:
