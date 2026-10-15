@@ -4,7 +4,6 @@ import { useNavigate } from 'react-router-dom';
 export default function ActiveExam() {
   const navigate = useNavigate();
   
-  // Dummy questions for now (will be replaced by Agent 1's live output on Day 6)
   const questions = [
     {
       id: 1,
@@ -28,8 +27,27 @@ export default function ActiveExam() {
 
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedAnswers, setSelectedAnswers] = useState({});
-  const [timeLeft, setTimeLeft] = useState(30); // 30 seconds per question
+  const [timeLeft, setTimeLeft] = useState(30);
   const [tabSwitches, setTabSwitches] = useState(0);
+  const [warningMessage, setWarningMessage] = useState(null);
+
+  // Anti-Cheat: Listen for tab switching or window minimizing
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        setTabSwitches((prev) => {
+          const newCount = prev + 1;
+          setWarningMessage(`⚠️ WARNING #${newCount}: Tab switching detected! Agent 4 is logging this violation for your permanent exam record.`);
+          return newCount;
+        });
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, []);
 
   // Countdown timer effect
   useEffect(() => {
@@ -53,14 +71,13 @@ export default function ActiveExam() {
   const handleNext = () => {
     if (currentIndex < questions.length - 1) {
       setCurrentIndex(currentIndex + 1);
-      setTimeLeft(30); // Reset timer for next question
+      setTimeLeft(30);
     } else {
       finishExam();
     }
   };
 
   const finishExam = () => {
-    // Calculate correct answers
     let correctCount = 0;
     questions.forEach((q, idx) => {
       if (selectedAnswers[idx] === q.answer) {
@@ -69,7 +86,6 @@ export default function ActiveExam() {
     });
 
     console.log(`Exam finished! Correct: ${correctCount}/${questions.length}, Tab Switches: ${tabSwitches}`);
-    // Navigate back to dashboard (on Day 6, we will send this payload to FastAPI)
     navigate('/');
   };
 
@@ -77,16 +93,32 @@ export default function ActiveExam() {
 
   return (
     <div className="max-w-2xl mx-auto p-6 pt-16">
+      {/* Anti-Cheat Warning Banner */}
+      {warningMessage && (
+        <div className="bg-red-600/20 border border-red-500 text-red-300 p-4 rounded-xl mb-6 flex items-center justify-between animate-bounce">
+          <span className="font-bold">{warningMessage}</span>
+          <button 
+            onClick={() => setWarningMessage(null)} 
+            className="text-red-400 hover:text-white font-bold px-2"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
       {/* Top Bar: Progress & Timer */}
       <div className="flex justify-between items-center mb-8 bg-slate-800 p-4 rounded-xl border border-slate-700">
         <span className="text-slate-400 font-medium">
           Question {currentIndex + 1} of {questions.length}
         </span>
-        <div className="flex items-center gap-2 bg-slate-900 px-4 py-2 rounded-lg border border-slate-700">
-          <span className="text-red-400">⏳</span>
-          <span className={`font-bold ${timeLeft < 10 ? 'text-red-500 animate-pulse' : 'text-white'}`}>
-            {timeLeft}s
-          </span>
+        <div className="flex items-center gap-4">
+          <span className="text-xs text-slate-400">Tab Switches: <strong className="text-red-400">{tabSwitches}</strong></span>
+          <div className="flex items-center gap-2 bg-slate-900 px-4 py-2 rounded-lg border border-slate-700">
+            <span className="text-red-400">⏳</span>
+            <span className={`font-bold ${timeLeft < 10 ? 'text-red-500 animate-pulse' : 'text-white'}`}>
+              {timeLeft}s
+            </span>
+          </div>
         </div>
       </div>
 
