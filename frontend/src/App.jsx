@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import Dashboard from './pages/Dashboard';
 import ExamSetup from './pages/ExamSetup';
+import ActiveExam from './pages/ActiveExam';
 
 function App() {
   return (
@@ -9,7 +10,7 @@ function App() {
         <Routes>
           <Route path="/" element={<Dashboard />} />
           <Route path="/exam" element={<ExamSetup />} />
-          <Route path="/exam/active" element={<div className="p-10 text-3xl font-bold text-red-400">Active Exam Engine (Day 4)</div>} />
+          <Route path="/exam/active" element={<ActiveExam />} />
         </Routes>
       </div>
     </BrowserRouter>
