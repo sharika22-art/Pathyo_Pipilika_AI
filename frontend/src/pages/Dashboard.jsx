@@ -6,14 +6,20 @@ export default function Dashboard() {
   const [userData, setUserData] = useState(null);
   const [coachMessage, setCoachMessage] = useState("Loading your coach's advice...");
 
-  // For testing, we'll hardcode a dummy user ID that would normally come from your auth system
-  const testUserId = "123e4567-e89b-12d3-a456-426614174000"; 
-
   useEffect(() => {
-    // Fetch data from your FastAPI backend
-    fetch(`${import.meta.env.VITE_API_URL}/dashboard/${testUserId}`)
+    // 1. Get the dynamic user ID stored during registration or guest sign-in
+    const currentUserId = localStorage.getItem('user_id');
+    
+    if (!currentUserId || currentUserId === 'guest') {
+      // Redirect to onboarding if no valid profile exists
+      navigate('/onboarding');
+      return;
+    }
+
+    // 2. Fetch real data from your FastAPI backend using the dynamic user ID
+    fetch(`${import.meta.env.VITE_API_URL}/dashboard/${currentUserId}`)
       .then(res => {
-        if (!res.ok) throw new Error("Backend not connected or user not found");
+        if (!res.ok) throw new Error("User not found or backend offline");
         return res.json();
       })
       .then(data => {
@@ -22,20 +28,19 @@ export default function Dashboard() {
       })
       .catch(err => {
         console.error(err);
-        // Fallback dummy data so you can see the UI before the database is populated
-        setUserData({
-          username: "Test Student",
-          grade: "10",
-          total_points: 1250,
-          coins: 45,
-          current_rank: 12,
-          mastery_percentage: 65.5
-        });
-        setCoachMessage("Keep pushing forward! Take a Hard mode quiz today to boost your syllabus mastery and climb the ranks.");
+        // If fetch fails, clear invalid storage and push to onboarding
+        localStorage.removeItem('user_id');
+        navigate('/onboarding');
       });
-  }, []);
+  }, [navigate]);
 
-  if (!userData) return <div className="p-10 text-xl text-slate-300">Loading dashboard...</div>;
+  if (!userData) {
+    return (
+      <div className="min-h-screen bg-slate-900 flex items-center justify-center">
+        <div className="p-10 text-xl text-slate-300 animate-pulse">Loading your dashboard...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-4xl mx-auto p-6 pt-12">
@@ -43,7 +48,7 @@ export default function Dashboard() {
       <div className="flex justify-between items-center mb-10">
         <div>
           <h1 className="text-4xl font-bold text-white mb-2">Welcome back, {userData.username}</h1>
-          <p className="text-slate-400">Class {userData.grade} | Rank: #{userData.current_rank}</p>
+          <p className="text-slate-400">Class {userData.grade} | Rank: #{userData.current_rank || 'Unranked'}</p>
         </div>
         <div className="flex gap-4">
           <div className="bg-slate-800 px-4 py-2 rounded-lg border border-slate-700 flex items-center gap-2">

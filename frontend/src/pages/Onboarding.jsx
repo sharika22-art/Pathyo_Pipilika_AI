@@ -14,21 +14,25 @@ export default function Onboarding() {
     setIsLoading(true);
 
     try {
-      // Send registration request to a backend endpoint (we will create this in FastAPI)
-      // Or directly talk to Supabase if preferred. Let's hit a backend route: /register
-      const response = await `${import.meta.env.VITE_API_URL}/register`;
-      // For now, let's simulate the backend response creating the user and returning a UUID:
-      const dummyUserId = crypto.randomUUID(); 
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, grade })
+      });
+
+      if (!response.ok) throw new Error("Registration failed");
+
+      const data = await response.json();
       
-      // Store the dynamic user ID and info in localStorage
-      localStorage.setItem('user_id', dummyUserId);
-      localStorage.setItem('username', username);
-      localStorage.setItem('grade', grade);
+      // Save the real UUID returned from Supabase via FastAPI into localStorage
+      localStorage.setItem('user_id', data.user.id);
+      localStorage.setItem('username', data.user.username);
+      localStorage.setItem('grade', data.user.grade);
 
       navigate('/');
     } catch (err) {
       console.error("Registration error:", err);
-      alert("Failed to create profile. Ensure backend is running.");
+      alert("Failed to create profile. Ensure your FastAPI backend is running!");
     } finally {
       setIsLoading(false);
     }
