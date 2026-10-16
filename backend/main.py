@@ -1,6 +1,7 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+from uuid import uuid4
 
 # Import our database client and models
 from database.client import db
@@ -27,6 +28,43 @@ app.add_middleware(
 def read_root():
     return {"status": "Backend is active and agents are ready."}
 
+# Request model for registration
+class UserRegister(BaseModel):
+    username: str
+    grade: str
+
+@app.post("/register")
+def register_user(user: UserRegister):
+    """Registers a new student, generates a unique UUID, and stores them in Supabase."""
+    try:
+        new_user_id = str(uuid4())
+        
+        profile_data = {
+            "id": new_user_id,
+            "username": user.username,
+            "grade": user.grade,
+            "total_points": 0,
+            "coins": 0,
+            "current_rank": None,
+            "mastery_percentage": 0.00
+        }
+
+        # Insert into Supabase users table
+        response = db.table("users").insert(profile_data).execute()
+        
+        if not response.data:
+            raise HTTPException(status_code=400, detail="Failed to create user record in database.")
+
+        return {
+            "status": "success",
+            "message": "User registered successfully.",
+            "user": response.data[0]
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+    
 @app.post("/submit-exam")
 def submit_exam(submission: ExamSubmission):
     """Endpoint hit by the frontend when a student finishes a quiz or the timer runs out."""
