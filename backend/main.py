@@ -64,6 +64,38 @@ def register_user(user: UserRegister):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+
+@app.get("/syllabus")
+def get_syllabus(grade: str, subject: str):
+    """Fetches chapters and their corresponding topics for a given grade and subject from Supabase."""
+    try:
+        # 1. Fetch chapters matching the grade and subject, ordered by chapter number
+        syllabus_res = db.table("syllabus")\
+            .select("*")\
+            .eq("grade", grade)\
+            .eq("subject", subject)\
+            .order("chapter_number")\
+            .execute()
+        
+        if not syllabus_res.data:
+            return {"chapters": []}
+            
+        chapters = syllabus_res.data
+        
+        # 2. Attach the specific topics to each chapter for strict AI scoping
+        for chapter in chapters:
+            topics_res = db.table("chapter_topics")\
+                .select("topic_name")\
+                .eq("syllabus_id", chapter["id"])\
+                .execute()
+            
+            chapter["topics"] = [t["topic_name"] for t in topics_res.data]
+            
+        return {"chapters": chapters}
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
     
 @app.post("/submit-exam")
 def submit_exam(submission: ExamSubmission):
