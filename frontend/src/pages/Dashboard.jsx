@@ -50,7 +50,13 @@ export default function Dashboard() {
           <h1 className="text-4xl font-bold text-white mb-2">Welcome back, {userData.username}</h1>
           <p className="text-slate-400">Class {userData.grade} | Rank: #{userData.current_rank || 'Unranked'}</p>
         </div>
-        <div className="flex gap-4">
+        <div className="flex gap-4 items-center">
+          <button 
+            onClick={() => navigate('/leaderboard')}
+            className="bg-slate-800 hover:bg-slate-700 text-yellow-400 font-bold px-4 py-2 rounded-lg border border-slate-700 transition-all flex items-center gap-2"
+          >
+            Leaderboard 🏆
+          </button>
           <div className="bg-slate-800 px-4 py-2 rounded-lg border border-slate-700 flex items-center gap-2">
             <span className="text-yellow-400">🪙</span>
             <span className="font-bold text-white">{userData.coins}</span>
