@@ -193,6 +193,20 @@ def get_leaderboard(grade: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.get("/history/{user_id}")
+def get_exam_history(user_id: str):
+    """Fetches past exam submissions for a given student ordered by most recent."""
+    try:
+        res = db.table("exam_history").select("id, syllabus_id, difficulty, total_questions, correct_answers, tab_switches_detected, created_at")\
+            .eq("user_id", user_id)\
+            .order("created_at", desc=True)\
+            .execute()
+            
+        return {"history": res.data}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.get("/dashboard/{user_id}")
 def get_dashboard(user_id: str):
     """Endpoint hit by the frontend when the student logs in and views their dashboard."""
