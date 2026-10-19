@@ -177,6 +177,22 @@ def submit_exam(submission: ExamSubmission):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+
+@app.get("/leaderboard/{grade}")
+def get_leaderboard(grade: str):
+    """Fetches top students for a given grade ordered by total points descending."""
+    try:
+        res = db.table("users").select("id, username, grade, total_points, coins, current_rank, mastery_percentage")\
+            .eq("grade", grade)\
+            .order("total_points", desc=True)\
+            .limit(10)\
+            .execute()
+            
+        return {"leaderboard": res.data}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.get("/dashboard/{user_id}")
 def get_dashboard(user_id: str):
     """Endpoint hit by the frontend when the student logs in and views their dashboard."""
