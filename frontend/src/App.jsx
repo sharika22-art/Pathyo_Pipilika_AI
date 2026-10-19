@@ -2,7 +2,9 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import Dashboard from './pages/Dashboard';
 import ExamSetup from './pages/ExamSetup';
 import ActiveExam from './pages/ActiveExam';
+import ExamResult from './pages/ExamResult';
 import Onboarding from './pages/Onboarding';
+import Leaderboard from './pages/Leaderboard';
 
 function App() {
   return (
@@ -13,6 +15,8 @@ function App() {
           <Route path="/" element={<Dashboard />} />
           <Route path="/exam" element={<ExamSetup />} />
           <Route path="/exam/active" element={<ActiveExam />} />
+          <Route path="/exam/result" element={<ExamResult />} />
+          <Route path="/leaderboard" element={<Leaderboard />} />
         </Routes>
       </div>
     </BrowserRouter>
