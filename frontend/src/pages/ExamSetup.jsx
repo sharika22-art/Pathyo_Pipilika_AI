@@ -16,8 +16,6 @@ export default function ExamSetup() {
   useEffect(() => {
     const userGrade = localStorage.getItem('grade') || '9-10';
     
-    // Fetch chapters matching the grade and selected subject from Supabase via a backend endpoint or direct client call
-    // For now, let's fetch from a quick backend route or query, or use dynamic filtering
     fetch(`${import.meta.env.VITE_API_URL}/syllabus?grade=${userGrade}&subject=${formData.subject}`)
       .then(res => res.json())
       .then(data => {
@@ -30,7 +28,6 @@ export default function ExamSetup() {
       })
       .catch(err => {
         console.error("Failed to load chapters, using mock chapters:", err);
-        // Fallback mock chapters if backend route isn't hit yet
         setChapters([
           { id: 'a1111111-1111-1111-1111-111111111111', chapter_number: 1, chapter_name: 'Physical Quantities and Measurement' },
           { id: 'a2222222-2222-2222-2222-222222222222', chapter_number: 2, chapter_name: 'Motion' },
@@ -44,10 +41,38 @@ export default function ExamSetup() {
     e.preventDefault();
     setIsGenerating(true);
     
-    setTimeout(() => {
+    try {
+      // Call your backend FastAPI /generate-quiz endpoint running Agent 1 (RAG) and Agent 2 (Reviewer)
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/generate-quiz`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          syllabus_id: formData.syllabus_id,
+          difficulty: formData.difficulty
+        }),
+      });
+
+      if (!response.ok) throw new Error("Failed to generate AI quiz package");
+
+      const data = await response.json();
+      
+      // Navigate to the active exam engine, passing the live AI questions and syllabus data through state
+      navigate('/exam/active', { 
+        state: { 
+          syllabus_id: formData.syllabus_id, 
+          difficulty: formData.difficulty,
+          quizData: data.quiz,
+          chapterName: data.chapter
+        } 
+      }); 
+
+    } catch (error) {
+      console.error("Error triggering AI generation:", error);
+      alert("Failed to generate quiz. Make sure your FastAPI backend and RAG database are ready!");
       setIsGenerating(false);
-      navigate('/exam/active', { state: { syllabus_id: formData.syllabus_id, difficulty: formData.difficulty } }); 
-    }, 2000);
+    }
   };
 
   return (
@@ -68,6 +93,7 @@ export default function ExamSetup() {
               <option value="Physics">Physics</option>
               <option value="Chemistry">Chemistry</option>
               <option value="Mathematics">Mathematics</option>
+              <option value="Higher Mathematics">Higher Mathematics</option>
             </select>
           </div>
 
@@ -117,9 +143,19 @@ export default function ExamSetup() {
           <button 
             type="submit"
             disabled={isGenerating}
-            className="w-full mt-8 bg-blue-600 hover:bg-blue-500 disabled:bg-blue-800 text-white font-bold text-lg py-4 rounded-xl transition-all"
+            className="w-full mt-8 bg-blue-600 hover:bg-blue-500 disabled:bg-blue-800 text-white font-bold text-lg py-4 rounded-xl transition-all flex items-center justify-center gap-3"
           >
-            {isGenerating ? 'Agents Generating Quiz from NCTB Scope...' : 'Initialize Exam Engine ⚡'}
+            {isGenerating ? (
+              <>
+                <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <span>Agents 1 & 2 Crafting & Auditing Quiz...</span>
+              </>
+            ) : (
+              'Initialize Exam Engine ⚡'
+            )}
           </button>
         </form>
       </div>
