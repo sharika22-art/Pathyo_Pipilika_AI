@@ -1,34 +1,21 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 export default function ActiveExam() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  
-  const questions = [
-    {
-      id: 1,
-      question: "Which cellular organelle is known as the powerhouse of the cell?",
-      options: ["Nucleus", "Ribosome", "Mitochondria", "Golgi Apparatus"],
-      answer: "Mitochondria"
-    },
-    {
-      id: 2,
-      question: "What is the primary site of photosynthesis in plant cells?",
-      options: ["Chloroplast", "Vacuole", "Endoplasmic Reticulum", "Lysosome"],
-      answer: "Chloroplast"
-    },
-    {
-      id: 3,
-      question: "Which blood cells are responsible for defending the body against pathogens?",
-      options: ["Red Blood Cells", "White Blood Cells", "Platelets", "Plasma"],
-      answer: "White Blood Cells"
-    }
-  ];
+
+  // Extract quiz data passed from ExamSetup via router state, with a fallback if accessed directly
+  const quizPackage = location.state?.quizData || { questions: [] };
+  const syllabusId = location.state?.syllabus_id || "987e6543-e21b-12d3-a456-426614174099";
+  const difficulty = location.state?.difficulty || "Medium";
+
+  const questions = quizPackage.questions || [];
 
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedAnswers, setSelectedAnswers] = useState({});
-  const [timeLeft, setTimeLeft] = useState(30);
+  const [timeLeft, setTimeLeft] = useState(45); // 45 seconds per AI question
   const [tabSwitches, setTabSwitches] = useState(0);
   const [warningMessage, setWarningMessage] = useState(null);
 
@@ -52,6 +39,7 @@ export default function ActiveExam() {
 
   // Countdown timer effect
   useEffect(() => {
+    if (questions.length === 0) return;
     if (timeLeft <= 0) {
       handleNext();
       return;
@@ -60,19 +48,19 @@ export default function ActiveExam() {
       setTimeLeft((prev) => prev - 1);
     }, 1000);
     return () => clearInterval(timer);
-  }, [timeLeft]);
+  }, [timeLeft, questions.length]);
 
-  const handleSelectOption = (option) => {
+  const handleSelectOption = (optionText) => {
     setSelectedAnswers({
       ...selectedAnswers,
-      [currentIndex]: option
+      [currentIndex]: optionText
     });
   };
 
   const handleNext = () => {
     if (currentIndex < questions.length - 1) {
       setCurrentIndex(currentIndex + 1);
-      setTimeLeft(30);
+      setTimeLeft(45);
     } else {
       finishExam();
     }
@@ -81,17 +69,23 @@ export default function ActiveExam() {
   const finishExam = async () => {
     setIsSubmitting(true);
     let correctCount = 0;
+
     questions.forEach((q, idx) => {
-      if (selectedAnswers[idx] === q.answer) {
+      const selectedText = selectedAnswers[idx];
+      // Find the option object where is_correct is true
+      const correctOption = q.options.find(opt => opt.is_correct);
+      
+      if (selectedText && correctOption && selectedText === correctOption.text) {
         correctCount++;
       }
     });
 
-    // Construct the payload matching your backend Pydantic model (ExamSubmission)
+    const currentUserId = localStorage.getItem('user_id') || "123e4567-e89b-12d3-a456-426614174000";
+
     const payload = {
-      user_id: "123e4567-e89b-12d3-a456-426614174000",      // Test user UUID
-      syllabus_id: "987e6543-e21b-12d3-a456-426614174099",  // Test syllabus UUID
-      difficulty: "Medium",
+      user_id: currentUserId,
+      syllabus_id: syllabusId,
+      difficulty: difficulty,
       total_questions: questions.length,
       correct_answers: correctCount,
       tab_switches_detected: tabSwitches
@@ -111,7 +105,6 @@ export default function ActiveExam() {
       const result = await response.json();
       console.log("Exam successfully logged:", result);
       
-      // Redirect back to dashboard to see updated points & coins
       navigate('/');
     } catch (error) {
       console.error("Error submitting exam:", error);
@@ -119,6 +112,21 @@ export default function ActiveExam() {
       setIsSubmitting(false);
     }
   };
+
+  if (questions.length === 0) {
+    return (
+      <div className="max-w-2xl mx-auto p-12 text-center text-white">
+        <h2 className="text-2xl font-bold mb-4">No Active Quiz Found</h2>
+        <p className="text-slate-400 mb-6">Please configure your mission and generate an exam first.</p>
+        <button 
+          onClick={() => navigate('/exam')}
+          className="bg-blue-600 px-6 py-3 rounded-xl font-bold hover:bg-blue-500 transition-all"
+        >
+          Go to Exam Setup ⚙️
+        </button>
+      </div>
+    );
+  }
 
   const currentQ = questions[currentIndex];
 
@@ -146,16 +154,16 @@ export default function ActiveExam() {
         <h2 className="text-2xl font-bold text-white mb-6">{currentQ.question}</h2>
         <div className="space-y-4">
           {currentQ.options.map((option, idx) => {
-            const isSelected = selectedAnswers[currentIndex] === option;
+            const isSelected = selectedAnswers[currentIndex] === option.text;
             return (
               <button
                 key={idx}
-                onClick={() => handleSelectOption(option)}
+                onClick={() => handleSelectOption(option.text)}
                 className={`w-full text-left p-4 rounded-xl border font-medium transition-all ${
                   isSelected ? 'bg-blue-600/20 border-blue-500 text-white shadow-[0_0_10px_rgba(37,99,235,0.3)]' : 'bg-slate-900 border-slate-700 text-slate-300 hover:border-slate-500'
                 }`}
               >
-                {option}
+                {option.text}
               </button>
             );
           })}
