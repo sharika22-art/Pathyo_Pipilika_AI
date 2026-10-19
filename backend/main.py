@@ -2,6 +2,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from uuid import uuid4
+import json
 
 # Import our database client and models
 from database.client import db
@@ -11,7 +12,9 @@ from database.models import ExamSubmission
 from agents.rank_watcher import process_exam_submission
 from agents.coach import update_true_mastery, generate_coach_message
 
-# (Assuming Agent 1 and 2 are imported here, e.g., from agents.generator import generate_quiz)
+# Import Agent 1 (Generator + RAG) and Agent 2 (Reviewer)
+from agents.generator import generate_quiz, retrieve_textbook_context
+from agents.reviewer import review_and_verify_quiz
 
 app = FastAPI(title="Gamified Edu Platform API")
 
@@ -93,6 +96,60 @@ def get_syllabus(grade: str, subject: str):
             
         return {"chapters": chapters}
         
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+class QuizRequest(BaseModel):
+    syllabus_id: str
+    difficulty: str
+
+@app.post("/generate-quiz")
+def generate_quiz_route(req: QuizRequest):
+    """Triggers Agent 1 (RAG + Generation) and Agent 2 (Context-Aware Review) for a selected chapter."""
+    try:
+        # 1. Fetch chapter, grade, and subject details from Supabase using syllabus_id
+        syllabus_res = db.table("syllabus").select("grade, subject, chapter_name").eq("id", req.syllabus_id).execute()
+        if not syllabus_res.data:
+            raise HTTPException(status_code=404, detail="Syllabus chapter not found.")
+            
+        chapter_info = syllabus_res.data[0]
+        grade = chapter_info["grade"]
+        subject = chapter_info["subject"]
+        chapter_name = chapter_info["chapter_name"]
+        
+        # Fetch an associated sub-topic for precise RAG querying
+        topics_res = db.table("chapter_topics").select("topic_name").eq("syllabus_id", req.syllabus_id).limit(1).execute()
+        topic_name = topics_res.data[0]["topic_name"] if topics_res.data else chapter_name
+
+        # 2. Retrieve local RAG textbook chunks from ChromaDB
+        textbook_context = retrieve_textbook_context(chapter_name, topic_name)
+
+        # 3. Agent 1: Generate the draft quiz JSON
+        raw_quiz_json = generate_quiz(
+            grade=grade, 
+            subject=subject, 
+            chapter=chapter_name, 
+            topic=topic_name, 
+            difficulty=req.difficulty
+        )
+        
+        # 4. Agent 2: Review and cross-check the draft against the RAG textbook context
+        verified_quiz_json = review_and_verify_quiz(
+            raw_quiz_json=raw_quiz_json,
+            textbook_context=textbook_context,
+            grade=grade,
+            subject=subject,
+            chapter=chapter_name,
+            difficulty=req.difficulty
+        )
+        
+        return {
+            "status": "success",
+            "chapter": chapter_name,
+            "topic": topic_name,
+            "quiz": json.loads(verified_quiz_json)
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
