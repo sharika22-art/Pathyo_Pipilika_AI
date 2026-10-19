@@ -105,7 +105,15 @@ export default function ActiveExam() {
       const result = await response.json();
       console.log("Exam successfully logged:", result);
       
-      navigate('/');
+      // Navigate to the post-exam results screen with breakdown data
+      navigate('/exam/result', { 
+        state: { 
+          correctCount, 
+          total: questions.length, 
+          questions, 
+          selectedAnswers 
+        } 
+      });
     } catch (error) {
       console.error("Error submitting exam:", error);
       alert("Submission error. Make sure your FastAPI backend is running!");
