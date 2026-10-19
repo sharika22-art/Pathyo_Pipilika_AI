@@ -1,11 +1,16 @@
 import os
+import json
 from pydantic import BaseModel, Field
 import google.generativeai as genai
+from langchain_community.embeddings import HuggingFaceEmbeddings
+from langchain_community.vectorstores import Chroma
 
-# 1. Initialize the client
-client = genai.Client()
+# Configure the Gemini SDK
+genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
 
-# 2. Define the exact JSON structure
+DB_DIR = "backend/rag/chroma_db"
+
+# Define the exact JSON structure
 class QuizOption(BaseModel):
     text: str = Field(description="The text of the multiple choice option.")
     is_correct: bool = Field(description="True if this is the correct answer, False otherwise.")
@@ -18,23 +23,49 @@ class QuizQuestion(BaseModel):
 class QuizResult(BaseModel):
     questions: list[QuizQuestion] = Field(description="A list of 20 to 30 quiz questions.")
 
-def generate_quiz(grade: str, subject: str, chapter: str, difficulty: str) -> str:
+def retrieve_textbook_context(chapter: str, topic: str) -> str:
+    """Queries the local Chroma vector database for relevant NCTB textbook text chunks."""
+    if not os.path.exists(DB_DIR):
+        return "No local textbook embeddings found. Generate questions based on standard curriculum knowledge."
+    
+    try:
+        embeddings = HuggingFaceEmbeddings(model_name="BAAI/bge-small-en-v1.5")
+        vector_store = Chroma(persist_directory=DB_DIR, embedding_function=embeddings)
+        
+        query = f"Bangladesh NCTB Class 9-10 syllabus {chapter} topic {topic}"
+        docs = vector_store.similarity_search(query, k=3)
+        
+        context = "\n\n".join([doc.page_content for doc in docs])
+        return context if context else "No specific textbook excerpts matched."
+    except Exception as e:
+        print(f"RAG Retrieval Error: {e}")
+        return "Error fetching textbook context."
+
+def generate_quiz(grade: str, subject: str, chapter: str, topic: str, difficulty: str) -> str:
     """
     Agent 1: Generates a JSON quiz based on the BD curriculum parameters.
-    Includes dynamic distractor logic for higher difficulties.
+    Includes RAG textbook context and dynamic distractor logic for higher difficulties.
     """
+    # Retrieve RAG context from ChromaDB
+    textbook_context = retrieve_textbook_context(chapter, topic)
     
     # Base prompt requirements
     prompt = f"""
-    You are an expert educator familiar with the Bangladesh National Curriculum.
+    You are an expert educator familiar with the Bangladesh National Curriculum (NCTB).
     Generate a {difficulty} level quiz for Grade {grade} students.
     Subject: {subject}
     Chapter: {chapter}
+    Specific Topic: {topic}
+    
+    Official NCTB Textbook Reference Context:
+    --------------------------------------------------
+    {textbook_context}
+    --------------------------------------------------
     
     Requirements:
-    1. Generate exactly 20 high-quality multiple-choice questions.
+    1. Generate exactly 20 high-quality multiple-choice questions grounded in the reference context.
     2. Each question must have exactly 4 options.
-    3. Exactly one option must be correct.
+    3. Exactly one option must be correct (`is_correct: true`), and three incorrect (`is_correct: false`).
     4. Provide a brief explanation for the correct answer.
     5. The difficulty must accurately reflect the '{difficulty}' level for a Grade {grade} student.
     """
@@ -46,7 +77,6 @@ def generate_quiz(grade: str, subject: str, chapter: str, difficulty: str) -> st
     """
 
     try:
-        # Call the Gemini 1.5 Flash model using the standard SDK
         model = genai.GenerativeModel('gemini-1.5-flash')
         response = model.generate_content(
             prompt,
@@ -64,11 +94,12 @@ def generate_quiz(grade: str, subject: str, chapter: str, difficulty: str) -> st
 
 # --- Test the Agent ---
 if __name__ == "__main__":
-    print("Generating challenging quiz...")
+    print("Generating challenging RAG quiz...")
     json_output = generate_quiz(
-        grade="9", 
-        subject="Biology", 
-        chapter="Chapter 4: Bioenergetics", 
+        grade="9-10", 
+        subject="Physics", 
+        chapter="Chapter 3: Force", 
+        topic="Newton’s Laws of Motion",
         difficulty="Hard"
     )
     print(json_output)
