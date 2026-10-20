@@ -36,10 +36,24 @@ class UserRegister(BaseModel):
     username: str
     grade: str
 
+# Request model for login
+class UserLogin(BaseModel):
+    username: str
+
 @app.post("/register")
 def register_user(user: UserRegister):
-    """Registers a new student, generates a unique UUID, and stores them in Supabase."""
+    """Registers a new student after checking if the username already exists."""
     try:
+        # 1. Check if the username already exists in Supabase
+        existing_user = db.table("users").select("*").eq("username", user.username).execute()
+        
+        if existing_user.data and len(existing_user.data) > 0:
+            raise HTTPException(
+                status_code=400, 
+                detail="Username not available, try another one."
+            )
+        
+        # 2. If it doesn't exist, proceed with registration
         new_user_id = str(uuid4())
         
         profile_data = {
@@ -52,7 +66,6 @@ def register_user(user: UserRegister):
             "mastery_percentage": 0.00
         }
 
-        # Insert into Supabase users table
         response = db.table("users").insert(profile_data).execute()
         
         if not response.data:
@@ -64,9 +77,37 @@ def register_user(user: UserRegister):
             "user": response.data[0]
         }
         
+    except HTTPException as he:
+        # Re-raise explicit HTTP exceptions (like our 400 duplicate check)
+        raise he
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+
+@app.post("/login")
+def login_user(user: UserLogin):
+    """Logs in an existing student by checking if their username exists in Supabase."""
+    try:
+        # Query Supabase for the existing username
+        response = db.table("users").select("*").eq("username", user.username).execute()
+        
+        if not response.data or len(response.data) == 0:
+            raise HTTPException(
+                status_code=404, 
+                detail="User not found. Please register first."
+            )
+
+        return {
+            "status": "success",
+            "message": "Login successful.",
+            "user": response.data[0]
+        }
+        
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    
 
 @app.get("/syllabus")
 def get_syllabus(grade: str, subject: str):
