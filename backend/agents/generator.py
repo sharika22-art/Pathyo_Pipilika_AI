@@ -1,27 +1,29 @@
 import os
 import json
 from pydantic import BaseModel, Field
-import google.generativeai as genai
+from openai import OpenAI
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_community.vectorstores import Chroma
 
-# Configure the Gemini SDK
-genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
+# Initialize OpenRouter client
+client = OpenAI(
+    base_url="https://openrouter.ai/api/v1",
+    api_key=os.environ.get("OPENROUTER_API_KEY"),
+)
 
 DB_DIR = "backend/rag/chroma_db"
 
-# Define the exact JSON structure
 class QuizOption(BaseModel):
     text: str = Field(description="The text of the multiple choice option.")
     is_correct: bool = Field(description="True if this is the correct answer, False otherwise.")
 
 class QuizQuestion(BaseModel):
-    question: str = Field(description="The quiz question text.")
+    question: str = Field(description="The quiz question text cleanly formulated without options.")
     options: list[QuizOption] = Field(description="A list of 4 possible options, with exactly one correct answer.")
     explanation: str = Field(description="A brief explanation of why the correct answer is right.")
 
 class QuizResult(BaseModel):
-    questions: list[QuizQuestion] = Field(description="A list of 20 to 30 quiz questions.")
+    questions: list[QuizQuestion] = Field(description="A list of 10 high-quality quiz questions.")
 
 def retrieve_textbook_context(chapter: str, topic: str) -> str:
     """Queries the local Chroma vector database for relevant NCTB textbook text chunks."""
@@ -43,13 +45,10 @@ def retrieve_textbook_context(chapter: str, topic: str) -> str:
 
 def generate_quiz(grade: str, subject: str, chapter: str, topic: str, difficulty: str) -> str:
     """
-    Agent 1: Generates a JSON quiz based on the BD curriculum parameters.
-    Includes RAG textbook context and dynamic distractor logic for higher difficulties.
+    Agent 1: Generates a JSON quiz based on the BD curriculum parameters using OpenRouter.
     """
-    # Retrieve RAG context from ChromaDB
     textbook_context = retrieve_textbook_context(chapter, topic)
     
-    # Base prompt requirements
     prompt = f"""
     You are an expert educator familiar with the Bangladesh National Curriculum (NCTB).
     Generate a {difficulty} level quiz for Grade {grade} students.
@@ -63,43 +62,34 @@ def generate_quiz(grade: str, subject: str, chapter: str, topic: str, difficulty
     --------------------------------------------------
     
     Requirements:
-    1. Generate exactly 20 high-quality multiple-choice questions grounded in the reference context.
+    1. Generate exactly 10 high-quality multiple-choice questions grounded strictly in the reference context.
     2. Each question must have exactly 4 options.
     3. Exactly one option must be correct (`is_correct: true`), and three incorrect (`is_correct: false`).
     4. Provide a brief explanation for the correct answer.
     5. The difficulty must accurately reflect the '{difficulty}' level for a Grade {grade} student.
+    6. DO NOT repeat questions or loop text. Keep each question unique and concise.
     """
 
-    # Dynamically inject the distractor instruction based on difficulty
     if difficulty.lower() in ["medium", "hard"]:
         prompt += """
-    6. CRITICAL DISTRACTOR RULE: Because the difficulty is Medium/Hard, the 3 incorrect options (distractors) MUST be highly plausible, conceptually similar, or common misconceptions related to the correct answer. They must be very close to each other to effectively challenge and confuse the students. Do not include any obvious or silly wrong answers.
+    7. CRITICAL DISTRACTOR RULE: The 3 incorrect options must be plausible misconceptions related to the core concept.
     """
 
     try:
-        model = genai.GenerativeModel('gemini-1.5-flash')
-        response = model.generate_content(
-            prompt,
-            generation_config=genai.GenerationConfig(
-                response_mime_type="application/json",
-                response_schema=QuizResult,
-                temperature=0.7 
-            )
+        response = client.chat.completions.create(
+            model="google/gemini-3.8-flash",
+            messages=[
+                {
+                    "role": "system", 
+                    "content": "You are a helpful API that outputs strict JSON conforming to this schema: " + json.dumps(QuizResult.model_json_schema())
+                },
+                {"role": "user", "content": prompt}
+            ],
+            response_format={"type": "json_object"},
+            temperature=0.4
         )
-        return response.text
+        return response.choices[0].message.content
         
     except Exception as e:
-        print(f"Error generating quiz: {e}")
+        print(f"Error generating quiz via OpenRouter: {e}")
         return "{}"
-
-# --- Test the Agent ---
-if __name__ == "__main__":
-    print("Generating challenging RAG quiz...")
-    json_output = generate_quiz(
-        grade="9-10", 
-        subject="Physics", 
-        chapter="Chapter 3: Force", 
-        topic="Newton’s Laws of Motion",
-        difficulty="Hard"
-    )
-    print(json_output)
