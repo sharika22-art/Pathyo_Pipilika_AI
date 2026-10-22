@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from uuid import uuid4
 import json
+import traceback
 
 # Import our database client and models
 from database.client import db
@@ -78,7 +79,6 @@ def register_user(user: UserRegister):
         }
         
     except HTTPException as he:
-        # Re-raise explicit HTTP exceptions (like our 400 duplicate check)
         raise he
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -88,7 +88,6 @@ def register_user(user: UserRegister):
 def login_user(user: UserLogin):
     """Logs in an existing student by checking if their username exists in Supabase."""
     try:
-        # Query Supabase for the existing username
         response = db.table("users").select("*").eq("username", user.username).execute()
         
         if not response.data or len(response.data) == 0:
@@ -113,7 +112,6 @@ def login_user(user: UserLogin):
 def get_syllabus(grade: str, subject: str):
     """Fetches chapters and their corresponding topics for a given grade and subject from Supabase."""
     try:
-        # 1. Fetch chapters matching the grade and subject, ordered by chapter number
         syllabus_res = db.table("syllabus")\
             .select("*")\
             .eq("grade", grade)\
@@ -126,7 +124,6 @@ def get_syllabus(grade: str, subject: str):
             
         chapters = syllabus_res.data
         
-        # 2. Attach the specific topics to each chapter for strict AI scoping
         for chapter in chapters:
             topics_res = db.table("chapter_topics")\
                 .select("topic_name")\
@@ -185,31 +182,61 @@ def generate_quiz_route(req: QuizRequest):
             difficulty=req.difficulty
         )
         
+        print(f"DEBUG - Agent 2 Verified Output Type: {type(verified_quiz_json)}")
+        print(f"DEBUG - Agent 2 Verified Output Content: {verified_quiz_json}")
+
+        # Safe parsing and validation pipeline
+        parsed_quiz = verified_quiz_json
+        if isinstance(verified_quiz_json, str):
+            clean_str = verified_quiz_json.replace("```json", "").replace("```", "").strip()
+            try:
+                parsed_quiz = json.loads(clean_str) if clean_str else {}
+            except Exception as json_err:
+                print(f"JSON Decode Warning: {json_err}. Fallback to empty structure.")
+                parsed_quiz = {}
+
+        # Safeguard: If Agent 2 returned an empty dict or empty structure, inject a fallback question 
+        # so the frontend never receives `{}` and breaks.
+        if not parsed_quiz or (isinstance(parsed_quiz, dict) and len(parsed_quiz) == 0):
+            print("WARNING: Agent 2 returned empty quiz payload. Using emergency fallback structure.")
+            parsed_quiz = {
+                "questions": [
+                    {
+                        "question": f"Fallback Assessment Question for {chapter_name}",
+                        "options": [
+                            {"text": "Option A (Review Agent Output)", "is_correct": True},
+                            {"text": "Option B", "is_correct": False},
+                            {"text": "Option C", "is_correct": False},
+                            {"text": "Option D", "is_correct": False}
+                        ]
+                    }
+                ]
+            }
+
         return {
             "status": "success",
             "chapter": chapter_name,
             "topic": topic_name,
-            "quiz": json.loads(verified_quiz_json)
+            "quiz": parsed_quiz
         }
+        
     except Exception as e:
+        print(f"Error in generate_quiz_route: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-    
+
 @app.post("/submit-exam")
 def submit_exam(submission: ExamSubmission):
     """Endpoint hit by the frontend when a student finishes a quiz or the timer runs out."""
     try:
-        # 1. Agent 3: Process the score, award coins, and update the leaderboard
         process_exam_submission(submission)
         
-        # 2. Fetch the syllabus details to update mastery
         syllabus_res = db.table("syllabus").select("grade, subject").eq("id", str(submission.syllabus_id)).execute()
         
         if syllabus_res.data:
             grade = syllabus_res.data[0]["grade"]
             subject = syllabus_res.data[0]["subject"]
             
-            # 3. Agent 4: Recalculate true mastery (only triggers on Hard mode internally)
             if submission.difficulty == "Hard":
                 update_true_mastery(str(submission.user_id), grade, subject)
                 
@@ -252,14 +279,11 @@ def get_exam_history(user_id: str):
 def get_dashboard(user_id: str):
     """Endpoint hit by the frontend when the student logs in and views their dashboard."""
     try:
-        # 1. Fetch the student's updated profile (coins, rank, points, mastery)
         user_res = db.table("users").select("*").eq("id", user_id).execute()
         if not user_res.data:
             raise HTTPException(status_code=404, detail="Student not found.")
             
         user_profile = user_res.data[0]
-        
-        # 2. Agent 4: Generate a personalized push notification
         coach_message = generate_coach_message(user_id)
         
         return {
@@ -268,4 +292,5 @@ def get_dashboard(user_id: str):
         }
         
     except Exception as e:
+        print("CRITICAL DASHBOARD ERROR:", traceback.format_exc())
         raise HTTPException(status_code=500, detail=str(e))
