@@ -42,7 +42,6 @@ export default function ExamSetup() {
     setIsGenerating(true);
     
     try {
-      // Call your backend FastAPI /generate-quiz endpoint running Agent 1 (RAG) and Agent 2 (Reviewer)
       const response = await fetch(`${import.meta.env.VITE_API_URL}/generate-quiz`, {
         method: 'POST',
         headers: {
@@ -58,7 +57,11 @@ export default function ExamSetup() {
 
       const data = await response.json();
       
-      // Navigate to the active exam engine, passing the live AI questions and syllabus data through state
+      // Save to localStorage as a safety backup against page reloads/refresh errors
+      localStorage.setItem('active_quiz', JSON.stringify(data.quiz));
+      localStorage.setItem('active_syllabus_id', formData.syllabus_id);
+      localStorage.setItem('active_difficulty', formData.difficulty);
+      
       navigate('/exam/active', { 
         state: { 
           syllabus_id: formData.syllabus_id, 
@@ -97,7 +100,7 @@ export default function ExamSetup() {
             </select>
           </div>
 
-          {/* Chapter Selection (Dynamic based on Subject) */}
+          {/* Chapter Selection */}
           <div>
             <label className="block text-sm font-medium text-slate-300 mb-2">Target Chapter</label>
             <select 
@@ -113,25 +116,33 @@ export default function ExamSetup() {
             </select>
           </div>
 
-          {/* Difficulty Selection */}
+          {/* Difficulty Radio Selection Cards */}
           <div>
             <label className="block text-sm font-medium text-slate-300 mb-2">Difficulty Level</label>
             <div className="grid grid-cols-3 gap-4">
-              {['Easy', 'Medium', 'Hard'].map((level) => (
-                <button
+              {[
+                { level: 'Easy', desc: 'Standard concept verification', color: 'border-green-500 text-green-400 bg-green-500/10' },
+                { level: 'Medium', desc: 'Board exam standard', color: 'border-yellow-500 text-yellow-400 bg-yellow-500/10' },
+                { level: 'Hard', desc: 'Mastery-level rigorous questions', color: 'border-red-500 text-red-400 bg-red-500/10' }
+              ].map(({ level, color }) => (
+                <label 
                   key={level}
-                  type="button"
-                  onClick={() => setFormData({...formData, difficulty: level})}
-                  className={`p-3 rounded-lg border font-bold transition-all ${
+                  className={`flex flex-col items-center justify-center p-4 rounded-xl border-2 cursor-pointer transition-all ${
                     formData.difficulty === level 
-                      ? level === 'Hard' ? 'bg-red-500/20 border-red-500 text-red-400'
-                      : level === 'Medium' ? 'bg-yellow-500/20 border-yellow-500 text-yellow-400'
-                      : 'bg-green-500/20 border-green-500 text-green-400'
-                      : 'bg-slate-900 border-slate-700 text-slate-500 hover:border-slate-500'
+                      ? `${color} shadow-lg ring-2 ring-offset-2 ring-offset-slate-800 ring-current` 
+                      : 'bg-slate-900 border-slate-700 text-slate-400 hover:border-slate-500'
                   }`}
                 >
-                  {level}
-                </button>
+                  <input 
+                    type="radio" 
+                    name="difficulty" 
+                    value={level}
+                    checked={formData.difficulty === level}
+                    onChange={(e) => setFormData({...formData, difficulty: e.target.value})}
+                    className="sr-only" 
+                  />
+                  <span className="font-bold text-base">{level}</span>
+                </label>
               ))}
             </div>
             {formData.difficulty === 'Hard' && (
