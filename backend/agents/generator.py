@@ -1,15 +1,10 @@
 import os
 import json
+import re
 from pydantic import BaseModel, Field
 from openai import OpenAI
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_community.vectorstores import Chroma
-
-# Initialize OpenRouter client
-client = OpenAI(
-    base_url="https://openrouter.ai/api/v1",
-    api_key=os.environ.get("OPENROUTER_API_KEY"),
-)
 
 DB_DIR = "backend/rag/chroma_db"
 
@@ -24,6 +19,32 @@ class QuizQuestion(BaseModel):
 
 class QuizResult(BaseModel):
     questions: list[QuizQuestion] = Field(description="A list of 10 high-quality quiz questions.")
+
+def call_openrouter_safely(client, model, messages, response_format=None, temperature=0.4, initial_max_tokens=6000):
+    """Automatically catches OpenRouter 402 credit limit errors and retries with adjusted tokens."""
+    current_max_tokens = initial_max_tokens
+    for _ in range(3):
+        try:
+            kwargs = {
+                "model": model,
+                "messages": messages,
+                "temperature": temperature,
+                "max_tokens": current_max_tokens
+            }
+            if response_format:
+                kwargs["response_format"] = response_format
+            return client.chat.completions.create(**kwargs)
+        except Exception as e:
+            err_str = str(e)
+            if "402" in err_str or "can only afford" in err_str:
+                match = re.search(r"can only afford\s+(\d+)", err_str)
+                if match:
+                    affordable_tokens = int(match.group(1))
+                    current_max_tokens = max(256, affordable_tokens - 100)
+                    print(f"⚡ [Generator Dynamic Token Adjuster] Auto-adjusting max_tokens to {current_max_tokens} and retrying...")
+                    continue
+            raise e
+    raise Exception("Failed to complete LLM call after multiple token adjustments.")
 
 def retrieve_textbook_context(chapter: str, topic: str) -> str:
     """Queries the local Chroma vector database for relevant NCTB textbook text chunks."""
@@ -47,6 +68,11 @@ def generate_quiz(grade: str, subject: str, chapter: str, topic: str, difficulty
     """
     Agent 1: Generates a JSON quiz based on the BD curriculum parameters using OpenRouter.
     """
+    client = OpenAI(
+        base_url="https://openrouter.ai/api/v1",
+        api_key=os.environ.get("OPENAI_API_KEY") or os.environ.get("OPENROUTER_API_KEY"),
+    )
+
     textbook_context = retrieve_textbook_context(chapter, topic)
     
     prompt = f"""
@@ -76,7 +102,8 @@ def generate_quiz(grade: str, subject: str, chapter: str, topic: str, difficulty
     """
 
     try:
-        response = client.chat.completions.create(
+        response = call_openrouter_safely(
+            client=client,
             model="google/gemini-3.8-flash",
             messages=[
                 {
@@ -86,7 +113,8 @@ def generate_quiz(grade: str, subject: str, chapter: str, topic: str, difficulty
                 {"role": "user", "content": prompt}
             ],
             response_format={"type": "json_object"},
-            temperature=0.4
+            temperature=0.4,
+            initial_max_tokens=6000
         )
         return response.choices[0].message.content
         

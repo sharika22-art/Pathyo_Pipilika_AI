@@ -1,12 +1,33 @@
 import os
+import re
 from openai import OpenAI
 from database.client import db
 
-# Initialize OpenRouter client
-client = OpenAI(
-    base_url="https://openrouter.ai/api/v1",
-    api_key=os.environ.get("OPENROUTER_API_KEY"),
-)
+def call_openrouter_safely(client, model, messages, response_format=None, temperature=0.7, initial_max_tokens=2000):
+    """Automatically catches OpenRouter 402 credit limit errors and retries with adjusted tokens."""
+    current_max_tokens = initial_max_tokens
+    for _ in range(3):
+        try:
+            kwargs = {
+                "model": model,
+                "messages": messages,
+                "temperature": temperature,
+                "max_tokens": current_max_tokens
+            }
+            if response_format:
+                kwargs["response_format"] = response_format
+            return client.chat.completions.create(**kwargs)
+        except Exception as e:
+            err_str = str(e)
+            if "402" in err_str or "can only afford" in err_str:
+                match = re.search(r"can only afford\s+(\d+)", err_str)
+                if match:
+                    affordable_tokens = int(match.group(1))
+                    current_max_tokens = max(256, affordable_tokens - 100)
+                    print(f"⚡ [Coach Dynamic Token Adjuster] Auto-adjusting max_tokens to {current_max_tokens} and retrying...")
+                    continue
+            raise e
+    raise Exception("Failed to complete LLM call after multiple token adjustments.")
 
 def update_true_mastery(user_id: str, grade: str, subject: str):
     """Calculates mastery percentage based ONLY on passing 'Hard' difficulty quizzes."""
@@ -28,6 +49,11 @@ def update_true_mastery(user_id: str, grade: str, subject: str):
 
 def generate_coach_message(user_id: str) -> str:
     """Uses OpenRouter to generate a personalized, motivational dashboard message."""
+    client = OpenAI(
+        base_url="https://openrouter.ai/api/v1",
+        api_key=os.environ.get("OPENAI_API_KEY") or os.environ.get("OPENROUTER_API_KEY"),
+    )
+
     user_response = db.table("users").select("username, current_rank, mastery_percentage, grade").eq("id", user_id).execute()
     if not user_response.data:
         return "Keep pushing forward! Take a quiz to get started on the leaderboard."
@@ -64,10 +90,12 @@ def generate_coach_message(user_id: str) -> str:
     """
     
     try:
-        response = client.chat.completions.create(
+        response = call_openrouter_safely(
+            client=client,
             model="google/gemini-3.8-flash",
             messages=[{"role": "user", "content": prompt}],
-            temperature=0.7
+            temperature=0.7,
+            initial_max_tokens=2000
         )
         return response.choices[0].message.content.strip()
     except Exception as e:
