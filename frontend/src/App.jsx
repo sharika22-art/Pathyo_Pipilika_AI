@@ -6,6 +6,7 @@ import ActiveExam from './pages/ActiveExam';
 import ExamResult from './pages/ExamResult';
 import Onboarding from './pages/Onboarding';
 import Leaderboard from './pages/Leaderboard';
+import 'katex/dist/katex.min.css';
 
 // Optional helper component to protect routes if user_id is missing
 function RequireAuth({ children }) {
