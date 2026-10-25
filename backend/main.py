@@ -14,7 +14,7 @@ from agents.rank_watcher import process_exam_submission
 from agents.coach import update_true_mastery, generate_coach_message
 
 # Import Agent 1 (Generator + RAG) and Agent 2 (Reviewer)
-from agents.generator import generate_quiz, retrieve_textbook_context
+from agents.generator import generate_quiz, retrieve_comprehensive_context
 from agents.reviewer import review_and_verify_quiz
 
 app = FastAPI(title="Gamified Edu Platform API")
@@ -161,7 +161,7 @@ def generate_quiz_route(req: QuizRequest):
         topic_name = topics_res.data[0]["topic_name"] if topics_res.data else chapter_name
 
         # 2. Retrieve local RAG textbook chunks from ChromaDB
-        textbook_context = retrieve_textbook_context(chapter_name, topic_name)
+        textbook_context = retrieve_comprehensive_context(chapter_name, topic_name)
 
         # 3. Agent 1: Generate the draft quiz JSON
         raw_quiz_json = generate_quiz(
@@ -175,7 +175,7 @@ def generate_quiz_route(req: QuizRequest):
         # 4. Agent 2: Review and cross-check the draft against the RAG textbook context
         verified_quiz_json = review_and_verify_quiz(
             raw_quiz_json=raw_quiz_json,
-            textbook_context=textbook_context,
+            reference_context=textbook_context,
             grade=grade,
             subject=subject,
             chapter=chapter_name,
