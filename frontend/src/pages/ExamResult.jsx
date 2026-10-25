@@ -4,18 +4,29 @@ export default function ExamResult() {
   const navigate = useNavigate();
   const location = useLocation();
   
-  // Extract results passed from ActiveExam via router state
   const resultData = location.state || {
-    score: 0,
-    total: 3,
     correctCount: 0,
+    total: 10,
     questions: [],
-    selectedAnswers: {}
+    selectedAnswers: {},
+    difficulty: "Medium",
+    tabSwitches: 0
   };
 
-  const { correctCount, total, questions, selectedAnswers } = resultData;
-  const pointsEarned = correctCount * 10; // Weighted point calculation
-  const coinsEarned = correctCount * 5;
+  const { correctCount, total, questions, selectedAnswers, difficulty = "Medium", tabSwitches = 0 } = resultData;
+
+  // Calculate mark penalties according to your exact rules
+  let penaltyMarks = 0;
+  if (difficulty === "Easy") {
+    penaltyMarks = tabSwitches * 2;
+  } else if (difficulty === "Medium") {
+    penaltyMarks = tabSwitches * 5;
+  }
+
+  // Score floors at 0 if penalties exceed correct answers
+  const finalMarks = Math.max(0, correctCount - penaltyMarks);
+  const pointsEarned = finalMarks * 10;
+  const coinsEarned = finalMarks * 5;
 
   return (
     <div className="max-w-2xl mx-auto p-6 pt-12">
@@ -24,18 +35,22 @@ export default function ExamResult() {
         <h1 className="text-3xl font-bold text-white mb-2">Mission Accomplished! 🎉</h1>
         <p className="text-slate-300 mb-6">Here is how you performed on this challenge.</p>
         
-        <div className="flex justify-center gap-6 mb-6">
-          <div className="bg-slate-900/60 px-6 py-4 rounded-xl border border-slate-700">
-            <p className="text-sm text-slate-400">Score</p>
-            <p className="text-3xl font-bold text-white">{correctCount} / {total}</p>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+          <div className="bg-slate-900/60 px-4 py-3 rounded-xl border border-slate-700">
+            <p className="text-xs text-slate-400">Final Marks</p>
+            <p className="text-2xl font-bold text-white">{finalMarks} / {total} <span className="text-xs text-slate-400 font-normal">(Raw: {correctCount})</span></p>
           </div>
-          <div className="bg-slate-900/60 px-6 py-4 rounded-xl border border-slate-700">
-            <p className="text-sm text-slate-400">Points Earned</p>
-            <p className="text-3xl font-bold text-blue-400">+{pointsEarned} pts</p>
+          <div className="bg-slate-900/60 px-4 py-3 rounded-xl border border-slate-700">
+            <p className="text-xs text-slate-400">Tab Penalties</p>
+            <p className="text-2xl font-bold text-red-400">-{penaltyMarks} marks</p>
           </div>
-          <div className="bg-slate-900/60 px-6 py-4 rounded-xl border border-slate-700">
-            <p className="text-sm text-slate-400">Coins Earned</p>
-            <p className="text-3xl font-bold text-yellow-400">🪙 +{coinsEarned}</p>
+          <div className="bg-slate-900/60 px-4 py-3 rounded-xl border border-slate-700">
+            <p className="text-xs text-slate-400">Points Earned</p>
+            <p className="text-2xl font-bold text-blue-400">+{pointsEarned} pts</p>
+          </div>
+          <div className="bg-slate-900/60 px-4 py-3 rounded-xl border border-slate-700">
+            <p className="text-xs text-slate-400">Coins Earned</p>
+            <p className="text-2xl font-bold text-yellow-400">🪙 +{coinsEarned}</p>
           </div>
         </div>
 
@@ -57,12 +72,25 @@ export default function ExamResult() {
 
           return (
             <div key={idx} className={`bg-slate-800 rounded-xl p-6 border ${isCorrect ? 'border-emerald-500/40' : 'border-red-500/40'}`}>
-              <div className="flex justify-between items-start mb-3">
-                <span className="text-sm font-bold text-slate-400">Question {idx + 1}</span>
-                <span className={`text-xs px-3 py-1 rounded-full font-bold ${isCorrect ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'}`}>
+              
+              {/* Guaranteed Spaced Header using Inline Styles */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', paddingBottom: '12px', borderBottom: '1px solid rgba(51, 65, 85, 0.6)' }}>
+                <span style={{ fontSize: '14px', fontWeight: 'bold', textTransform: 'uppercase', color: '#cbd5e1' }}>
+                  Question {idx + 1}
+                </span>
+                <span style={{ 
+                  fontSize: '12px', 
+                  padding: '4px 12px', 
+                  borderRadius: '9999px', 
+                  fontWeight: 'bold', 
+                  backgroundColor: isCorrect ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)', 
+                  color: isCorrect ? '#6ee7b7' : '#fca5a5', 
+                  border: isCorrect ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid rgba(239, 68, 68, 0.3)' 
+                }}>
                   {isCorrect ? 'Correct ✓' : 'Incorrect ✕'}
                 </span>
               </div>
+
               <h3 className="text-lg font-semibold text-white mb-4">{q.question}</h3>
               
               <div className="space-y-2 mb-4 text-sm">
