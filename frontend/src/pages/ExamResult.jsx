@@ -1,4 +1,20 @@
 import { useLocation, useNavigate } from 'react-router-dom';
+import { InlineMath, BlockMath } from '@matejmazur/react-katex';
+import 'katex/dist/katex.min.css';
+
+// Helper function to parse and render inline/block LaTeX wrapped in $...$ or $$...$$
+function renderLaTeX(text) {
+  if (!text || typeof text !== 'string') return text;
+  const parts = text.split(/(\$\$[\s\S]*?\$\$|\$[^\$]+?\$)/g);
+  return parts.map((part, i) => {
+    if (part.startsWith('$$') && part.endsWith('$$')) {
+      return <BlockMath key={i} math={part.slice(2, -2)} />;
+    } else if (part.startsWith('$') && part.endsWith('$')) {
+      return <InlineMath key={i} math={part.slice(1, -1)} />;
+    }
+    return part;
+  });
+}
 
 export default function ExamResult() {
   const navigate = useNavigate();
@@ -91,15 +107,17 @@ export default function ExamResult() {
                 </span>
               </div>
 
-              <h3 className="text-lg font-semibold text-white mb-4">{q.question}</h3>
+              <h3 className="text-lg font-semibold text-white mb-4 leading-relaxed">
+                {renderLaTeX(q.question)}
+              </h3>
               
               <div className="space-y-2 mb-4 text-sm">
                 <p className="text-slate-300">
-                  Your Answer: <strong className={isCorrect ? 'text-emerald-400' : 'text-red-400'}>{studentAnswer || 'Not Answered'}</strong>
+                  Your Answer: <strong className={isCorrect ? 'text-emerald-400' : 'text-red-400'}>{renderLaTeX(studentAnswer) || 'Not Answered'}</strong>
                 </p>
                 {!isCorrect && (
                   <p className="text-slate-300">
-                    Correct Answer: <strong className="text-emerald-400">{correctOption?.text}</strong>
+                    Correct Answer: <strong className="text-emerald-400">{renderLaTeX(correctOption?.text)}</strong>
                   </p>
                 )}
               </div>
@@ -107,7 +125,7 @@ export default function ExamResult() {
               {q.explanation && (
                 <div className="bg-slate-900/50 p-4 rounded-lg border border-slate-700 text-sm text-slate-300">
                   <strong className="text-indigo-300 block mb-1">Explanation:</strong>
-                  {q.explanation}
+                  {renderLaTeX(q.explanation)}
                 </div>
               )}
             </div>
