@@ -1,17 +1,26 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { InlineMath, BlockMath } from '@matejmazur/react-katex';
+
+import katex from 'katex';
 import 'katex/dist/katex.min.css';
 
-// Helper function to parse and render inline/block LaTeX wrapped in $...$ or $$...$$
+// Direct KaTeX rendering helper (immune to Vite export bugs)
 function renderLaTeX(text) {
   if (!text || typeof text !== 'string') return text;
+  
+  // Split by $$...$$ for block math or $...$ for inline math
   const parts = text.split(/(\$\$[\s\S]*?\$\$|\$[^\$]+?\$)/g);
   return parts.map((part, i) => {
-    if (part.startsWith('$$') && part.endsWith('$$')) {
-      return <BlockMath key={i} math={part.slice(2, -2)} />;
-    } else if (part.startsWith('$') && part.endsWith('$')) {
-      return <InlineMath key={i} math={part.slice(1, -1)} />;
+    try {
+      if (part.startsWith('$$') && part.endsWith('$$')) {
+        const html = katex.renderToString(part.slice(2, -2), { displayMode: true, throwOnError: false });
+        return <span key={i} dangerouslySetInnerHTML={{ __html: html }} />;
+      } else if (part.startsWith('$') && part.endsWith('$')) {
+        const html = katex.renderToString(part.slice(1, -1), { displayMode: false, throwOnError: false });
+        return <span key={i} dangerouslySetInnerHTML={{ __html: html }} />;
+      }
+    } catch (e) {
+      return part;
     }
     return part;
   });
@@ -218,8 +227,19 @@ export default function ActiveExam() {
         <h2 className="text-2xl font-bold text-white mb-6 leading-relaxed">
           {renderLaTeX(currentQ.question || "Loading question...")}
         </h2>
+
+        {/* Display Matplotlib graph if image_url is provided */}
+        {currentQ.image_url && (
+          <div className="mb-6 flex justify-center bg-slate-900 p-4 rounded-xl border border-slate-700">
+            <img 
+              src={`${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:8000'}/${currentQ.image_url}`} 
+              alt="Physics Graph" 
+              className="max-h-64 rounded-lg object-contain"
+            />
+          </div>
+        )}
         
-        {/* Explicit vertical stacking for options */}
+        {/* Strictly vertical stack layout ensuring each option is on its own separate line */}
         <div className="flex flex-col space-y-3 w-full">
           {currentQ.options?.map((option, idx) => {
             const isSelected = selectedAnswers[currentIndex] === option.text;
@@ -227,7 +247,7 @@ export default function ActiveExam() {
               <label
                 key={idx}
                 onClick={() => handleSelectOption(option.text)}
-                className={`w-full text-left p-4 rounded-xl border font-medium transition-all flex items-center space-x-4 cursor-pointer ${
+                className={`w-full text-left p-4 rounded-xl border font-medium transition-all flex items-center space-x-4 cursor-pointer block ${
                   isSelected 
                     ? 'bg-blue-600/30 border-blue-500 text-white shadow-[0_0_15px_rgba(37,99,235,0.4)]' 
                     : 'bg-slate-900 border-slate-700 text-slate-300 hover:border-slate-500 hover:bg-slate-800/50'
