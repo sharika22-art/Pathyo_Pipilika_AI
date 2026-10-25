@@ -1,41 +1,14 @@
 import os
 import json
-from pdf2image import convert_from_path
-import pytesseract
-from langchain_core.documents import Document
+from langchain_community.document_loaders import PyPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_community.vectorstores import Chroma
 
-TRACKER_FILE = "./chroma_db/ingested_files.json"
-
-def load_scanned_pdf_with_ocr(pdf_path: str):
-    """
-    Converts a scanned PDF's pages into images and extracts text 
-    using Tesseract OCR (supporting English and Bengali).
-    """
-    print(f"👁️ Running OCR on scanned PDF: {os.path.basename(pdf_path)}...")
-    documents = []
-    try:
-        # Convert PDF pages to PIL images
-        images = convert_from_path(pdf_path)
-        
-        for i, image in enumerate(images):
-            # Run OCR specifying English ('eng') and Bengali ('ben')
-            # Fallback to 'eng+ben' (make sure tesseract-ocr-ben is installed)
-            text = pytesseract.image_to_string(image, lang='eng+ben')
-            
-            if text and text.strip():
-                doc = Document(
-                    page_content=text, 
-                    metadata={"source": pdf_path, "page": i + 1}
-                )
-                documents.append(doc)
-        print(f"✅ Extracted text from {len(images)} pages via OCR.")
-    except Exception as e:
-        print(f"⚠️ OCR Error on {pdf_path}: {e}")
-        
-    return documents
+# Path configuration based on your setup
+PDF_PATH = "backend/data/guidebooks/all.pdf"
+PERSIST_DIRECTORY = "backend/rag/chroma_db"
+TRACKER_FILE = os.path.join(PERSIST_DIRECTORY, "ingested_files.json")
 
 def load_ingested_files():
     if os.path.exists(TRACKER_FILE):
@@ -48,28 +21,28 @@ def save_ingested_files(ingested_set):
     with open(TRACKER_FILE, "w", encoding="utf-8") as f:
         json.dump(list(ingested_set), f, indent=2)
 
-def ingest_new_pdfs(pdf_directory: str, persist_directory: str = "./chroma_db"):
-    print(f"📂 Scanning directory: {pdf_directory}")
+def ingest_guidebook():
+    print(f"📂 Target PDF path: {PDF_PATH}")
+    
+    if not os.path.exists(PDF_PATH):
+        print(f"⚠️ Error: Could not find file at {PDF_PATH}")
+        return
+
     ingested_files = load_ingested_files()
-    all_new_documents = []
-    new_files_detected = False
+    filename = os.path.basename(PDF_PATH)
 
-    for filename in os.listdir(pdf_directory):
-        if filename.endswith(".pdf"):
-            if filename in ingested_files:
-                print(f"⏩ Skipping (already ingested): {filename}")
-                continue
-            
-            pdf_path = os.path.join(pdf_directory, filename)
-            # Use OCR loader for scanned guidebooks
-            documents = load_scanned_pdf_with_ocr(pdf_path)
-            if documents:
-                all_new_documents.extend(documents)
-                ingested_files.add(filename)
-                new_files_detected = True
+    if filename in ingested_files:
+        print(f"⏩ Skipping (already ingested): {filename}")
+        return
 
-    if not new_files_detected:
-        print("✅ No new PDFs found. Your vector store is up to date!")
+    print(f"📖 Loading selectable text from {filename} (contains multiple subject chapters)...")
+    try:
+        # Native PyPDFLoader since text is selectable
+        loader = PyPDFLoader(PDF_PATH)
+        documents = loader.load()
+        print(f"✅ Loaded {len(documents)} pages successfully.")
+    except Exception as e:
+        print(f"⚠️ Error loading PDF: {e}")
         return
 
     print("✂️ Splitting text into chunks...")
@@ -78,18 +51,18 @@ def ingest_new_pdfs(pdf_directory: str, persist_directory: str = "./chroma_db"):
         chunk_overlap=150,
         separators=["\n\n", "\n", " ", ""]
     )
-    docs = text_splitter.split_documents(all_new_documents)
-    print(f"✅ Created {len(docs)} new chunks.")
+    docs = text_splitter.split_documents(documents)
+    print(f"✅ Created {len(docs)} text chunks.")
 
-    print("🤗 Initializing HuggingFace Embeddings...")
+    print("🤗 Initializing HuggingFace Embeddings (all-MiniLM-L6-v2)...")
     embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
 
-    print("💾 Updating Chroma vector store...")
-    if os.path.exists(persist_directory) and os.listdir(persist_directory):
+    print("💾 Updating Chroma vector store ('ssc_question_bank')...")
+    if os.path.exists(PERSIST_DIRECTORY) and os.listdir(PERSIST_DIRECTORY):
         vector_store = Chroma(
             collection_name="ssc_question_bank",
             embedding_function=embeddings,
-            persist_directory=persist_directory
+            persist_directory=PERSIST_DIRECTORY
         )
         vector_store.add_documents(docs)
     else:
@@ -97,11 +70,13 @@ def ingest_new_pdfs(pdf_directory: str, persist_directory: str = "./chroma_db"):
             documents=docs,
             embedding=embeddings,
             collection_name="ssc_question_bank",
-            persist_directory=persist_directory
+            persist_directory=PERSIST_DIRECTORY
         )
 
+    # Mark file as ingested
+    ingested_files.add(filename)
     save_ingested_files(ingested_files)
-    print("🚀 OCR Ingestion complete and logged!")
+    print("🚀 Ingestion complete! Multi-subject chapters successfully added to RAG memory.")
 
 if __name__ == "__main__":
-    ingest_new_pdfs(pdf_directory="./guidebooks")
+    ingest_guidebook()
