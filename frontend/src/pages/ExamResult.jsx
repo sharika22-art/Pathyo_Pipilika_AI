@@ -1,16 +1,25 @@
 import { useLocation, useNavigate } from 'react-router-dom';
-import { InlineMath, BlockMath } from '@matejmazur/react-katex';
+
+import katex from 'katex';
 import 'katex/dist/katex.min.css';
 
-// Helper function to parse and render inline/block LaTeX wrapped in $...$ or $$...$$
+// Direct KaTeX rendering helper (immune to Vite export bugs)
 function renderLaTeX(text) {
   if (!text || typeof text !== 'string') return text;
+  
+  // Split by $$...$$ for block math or $...$ for inline math
   const parts = text.split(/(\$\$[\s\S]*?\$\$|\$[^\$]+?\$)/g);
   return parts.map((part, i) => {
-    if (part.startsWith('$$') && part.endsWith('$$')) {
-      return <BlockMath key={i} math={part.slice(2, -2)} />;
-    } else if (part.startsWith('$') && part.endsWith('$')) {
-      return <InlineMath key={i} math={part.slice(1, -1)} />;
+    try {
+      if (part.startsWith('$$') && part.endsWith('$$')) {
+        const html = katex.renderToString(part.slice(2, -2), { displayMode: true, throwOnError: false });
+        return <span key={i} dangerouslySetInnerHTML={{ __html: html }} />;
+      } else if (part.startsWith('$') && part.endsWith('$')) {
+        const html = katex.renderToString(part.slice(1, -1), { displayMode: false, throwOnError: false });
+        return <span key={i} dangerouslySetInnerHTML={{ __html: html }} />;
+      }
+    } catch (e) {
+      return part;
     }
     return part;
   });
