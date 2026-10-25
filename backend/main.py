@@ -1,3 +1,4 @@
+import os
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -17,7 +18,12 @@ from agents.coach import update_true_mastery, generate_coach_message
 from agents.generator import generate_quiz, retrieve_comprehensive_context
 from agents.reviewer import review_and_verify_quiz
 
+from fastapi.staticfiles import StaticFiles
+
 app = FastAPI(title="Gamified Edu Platform API")
+
+os.makedirs("backend/static/graphs", exist_ok=True)
+app.mount("/static", StaticFiles(directory="backend/static"), name="static")
 
 # Configure CORS so the React frontend (running on a different port) can talk to this backend
 app.add_middleware(
