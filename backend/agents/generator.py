@@ -46,59 +46,68 @@ def call_openrouter_safely(client, model, messages, response_format=None, temper
             raise e
     raise Exception("Failed to complete LLM call after multiple token adjustments.")
 
-def retrieve_textbook_context(chapter: str, topic: str) -> str:
-    """Queries the local Chroma vector database for relevant NCTB textbook text chunks."""
+def retrieve_comprehensive_context(chapter: str, topic: str) -> str:
+    """Queries the local Chroma vector database for both textbook foundations and guidebook problem patterns."""
     if not os.path.exists(DB_DIR):
-        return "No local textbook embeddings found. Generate questions based on standard curriculum knowledge."
+        return "No local embeddings found. Generate questions based on standard curriculum knowledge."
     
     try:
-        embeddings = HuggingFaceEmbeddings(model_name="BAAI/bge-small-en-v1.5")
+        embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
         vector_store = Chroma(persist_directory=DB_DIR, embedding_function=embeddings)
         
-        query = f"Bangladesh NCTB Class 9-10 syllabus {chapter} topic {topic}"
-        docs = vector_store.similarity_search(query, k=3)
+        # Dual queries to capture both theoretical framing from textbooks and problem styles from guidebooks
+        query_textbook = f"Bangladesh NCTB syllabus textbook theory concepts {chapter} {topic}"
+        query_guidebook = f"board standard numerical problems MCQ practice questions test paper {chapter} {topic}"
         
-        context = "\n\n".join([doc.page_content for doc in docs])
-        return context if context else "No specific textbook excerpts matched."
+        docs_textbook = vector_store.similarity_search(query_textbook, k=3)
+        docs_guidebook = vector_store.similarity_search(query_guidebook, k=4)
+        
+        combined_docs = docs_textbook + docs_guidebook
+        
+        if not combined_docs:
+            return "No specific reference excerpts matched."
+            
+        context = "\n\n---\n\n".join([doc.page_content for doc in combined_docs])
+        return context
     except Exception as e:
         print(f"RAG Retrieval Error: {e}")
-        return "Error fetching textbook context."
+        return "Error fetching reference context."
 
 def generate_quiz(grade: str, subject: str, chapter: str, topic: str, difficulty: str) -> str:
     """
-    Agent 1: Generates a JSON quiz based on the BD curriculum parameters using OpenRouter.
+    Agent 1: Generates a JSON quiz grounded in guidebook standards and textbook theory using OpenRouter.
     """
     client = OpenAI(
         base_url="https://openrouter.ai/api/v1",
         api_key=os.environ.get("OPENAI_API_KEY") or os.environ.get("OPENROUTER_API_KEY"),
     )
 
-    textbook_context = retrieve_textbook_context(chapter, topic)
+    reference_context = retrieve_comprehensive_context(chapter, topic)
     
     prompt = f"""
-    You are an expert educator familiar with the Bangladesh National Curriculum (NCTB).
+    You are an expert curriculum creator and senior examiner familiar with Bangladesh NCTB standards and top guidebooks (like Panjeree/Lecture).
     Generate a {difficulty} level quiz for Grade {grade} students.
     Subject: {subject}
     Chapter: {chapter}
     Specific Topic: {topic}
     
-    Official NCTB Textbook Reference Context:
+    Official Reference Context (Textbooks & Guidebook Extracts):
     --------------------------------------------------
-    {textbook_context}
+    {reference_context}
     --------------------------------------------------
     
-    Requirements:
+    Requirements & Guidelines:
     1. Generate exactly 10 high-quality multiple-choice questions grounded strictly in the reference context.
-    2. Each question must have exactly 4 options.
-    3. Exactly one option must be correct (`is_correct: true`), and three incorrect (`is_correct: false`).
-    4. Provide a brief explanation for the correct answer.
-    5. The difficulty must accurately reflect the '{difficulty}' level for a Grade {grade} student.
-    6. DO NOT repeat questions or loop text. Keep each question unique and concise.
+    2. GUIDEBOOK STANDARD & VARIETY: Match the exact style, tone, and rigor of authentic Bangladeshi board-standard guidebooks. Do not enforce rigid structural percentages (like strict 50% math); instead, let the natural nature of the chapter dictate the balance. If the chapter is heavily mathematical, include more numerical problems. If it is conceptual, include deep analytical theory.
+    3. COMPREHENSIVE COVERAGE: Across the 10 questions, cover ALL possible question types, sub-topics, variations, and application formats found in this specific chapter. Ensure no two questions feel repetitive.
+    4. Each question must have exactly 4 options. Exactly one option must be correct (`is_correct: true`), and three incorrect (`is_correct: false`).
+    5. Provide a clear, step-by-step explanation for the correct answer.
+    6. The difficulty must accurately reflect the '{difficulty}' level for a Grade {grade} student.
     """
 
     if difficulty.lower() in ["medium", "hard"]:
         prompt += """
-    7. CRITICAL DISTRACTOR RULE: The 3 incorrect options must be plausible misconceptions related to the core concept.
+    7. CRITICAL DISTRACTOR RULE: The 3 incorrect options must represent common student misconceptions, miscalculated intermediate values, or classic board-exam trap answers.
     """
 
     try:
