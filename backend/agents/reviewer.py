@@ -13,12 +13,12 @@ class VerifiedQuestion(BaseModel):
     options: list[QuizOption] = Field(description="Exactly 4 options with exactly one correct option.")
     explanation: str = Field(description="Detailed step-by-step explanation supporting the correct answer.")
     image_url: str | None = Field(default=None, description="Path or URL to a generated graph/diagram if required.")
+    visual_code: str | None = Field(default=None, description="Python/Matplotlib code snippet to draw the custom diagram on the fly.")
 
 class VerifiedQuizResult(BaseModel):
     questions: list[VerifiedQuestion] = Field(description="List of exactly 20 verified, corrected questions.")
 
-def call_openrouter_safely(client, model, messages, response_format=None, temperature=0.2, initial_max_tokens=8000):
-    """Automatically catches OpenRouter 402 credit limit errors and retries with adjusted tokens."""
+def call_openrouter_safely(client, model, messages, response_format=None, temperature=0.2, initial_max_tokens=8192):
     current_max_tokens = initial_max_tokens
     for _ in range(3):
         try:
@@ -38,7 +38,6 @@ def call_openrouter_safely(client, model, messages, response_format=None, temper
                 if match:
                     affordable_tokens = int(match.group(1))
                     current_max_tokens = max(512, affordable_tokens - 100)
-                    print(f"⚡ [Reviewer Token Adjuster] Auto-adjusting max_tokens to {current_max_tokens} and retrying...")
                     continue
             raise e
     raise Exception("Failed to complete LLM call after multiple token adjustments.")
@@ -60,7 +59,7 @@ def review_and_verify_quiz(
     )
 
     prompt = f"""
-    You are an expert curriculum auditor, senior board examiner, and fact-checker for Bangladesh SSC standards.
+    You are an expert curriculum auditor and chief board examiner for Bangladesh SSC standards.
     
     Review this draft 20-question quiz for Grade {grade}, Subject: {subject}, Chapter: {chapter}.
     Target Difficulty: {difficulty}
@@ -75,10 +74,11 @@ def review_and_verify_quiz(
 
     Audit Tasks & Strict Guidelines:
     1. EXACTLY 20 QUESTIONS: Ensure the final output contains a pristine set of 20 questions covering all chapter sub-topics.
-    2. BOARD STANDARD & MATH RIGOR: Check that numerical problems reflect real board-exam complexity rather than trivial arithmetic. Verify step-by-step calculation correctness in the explanations.
-    3. OPTION INTEGRITY: Ensure EVERY question has exactly 4 options, with **exactly one option** having `is_correct: true` and 3 having `is_correct: false`.
-    4. DIFFICULTY CALIBRATION: If difficulty is **Hard**, ensure distractors (incorrect options) use close, trap values resulting from common student formula errors.
-    5. Return the final verified questions strictly in the requested JSON schema.
+    2. STRICT SSC SYLLABUS PURITY AUDIT (REJECT/SIMPLIFY): Discard or rewrite any question drifting into higher-secondary (HSC) or college-level curriculum. Every question must be 100% anchored in official Bangladesh NCTB Class 9-10 textbooks for {subject}.
+    3. CALCULATOR & NUMBER CHECK: Calculators are allowed. Complex or scientific notation numbers are fully valid and should not be penalized, as long as the problem is solvable within a 45-second exam window.
+    4. VISUAL CODE PRESERVATION: Keep `visual_code` and `image_url` intact and accurate for questions requiring custom diagrams, coordinate plots, or curves (like titration curves or motion graphs). Ensure the Python snippet uses Matplotlib correctly.
+    5. OPTION INTEGRITY & JSON SAFETY: Ensure EVERY question has exactly 4 options, with **exactly one option** having `is_correct: true`. Ensure all LaTeX backslashes are valid within JSON rules.
+    6. Return the final verified questions strictly in the requested JSON schema.
     """
 
     try:
@@ -94,7 +94,7 @@ def review_and_verify_quiz(
             ],
             response_format={"type": "json_object"},
             temperature=0.2,
-            initial_max_tokens=8000
+            initial_max_tokens=8192
         )
         return response.choices[0].message.content
     except Exception as e:
