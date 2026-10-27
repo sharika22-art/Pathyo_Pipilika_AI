@@ -352,17 +352,43 @@ def generate_user_progress_graph(user_id: str):
         print(f"Progress Graph Generation Error: {e}")
         return {"graph_url": None}
 
+class ChatMessage(BaseModel):
+    role: str
+    content: str
+
 class LeoChatRequest(BaseModel):
+    user_id: str
     message: str
+    history: list[ChatMessage] = []
     subject: str = "General Science"
 
 @app.post("/leo-chat")
 def leo_chat_endpoint(req: LeoChatRequest):
     """
-    Endpoint for the persistent Leo AI Tutor sidebar. 
-    Retrieves relevant textbook context via RAG and generates a targeted NCTB explanation.
+    Endpoint for Leo AI Tutor. Deducts 10 coins, passes full conversation history, 
+    and retrieves RAG context for Bangladesh NCTB Class 9-10.
     """
     try:
+        # Bypass coin deduction if guest mode
+        if req.user_id != "guest":
+            user_res = db.table("users").select("coins").eq("id", req.user_id).execute()
+            if not user_res.data:
+                raise HTTPException(status_code=404, detail="User not found.")
+            
+            current_coins = user_res.data[0].get("coins", 0)
+            COIN_COST = 10  # Cost per question set to 10 coins
+
+            if current_coins < COIN_COST:
+                raise HTTPException(
+                    status_code=400, 
+                    detail=f"⚠️ Not enough coins! You need {COIN_COST} coins to ask Leo (Current: {current_coins} coins). Complete quizzes to earn more! 🚀"
+                )
+
+            new_coins = current_coins - COIN_COST
+            db.table("users").update({"coins": new_coins}).eq("id", req.user_id).execute()
+        else:
+            new_coins = 0
+
         client = OpenAI(
             base_url="https://openrouter.ai/api/v1",
             api_key=os.environ.get("OPENAI_API_KEY") or os.environ.get("OPENROUTER_API_KEY"),
@@ -376,31 +402,35 @@ def leo_chat_endpoint(req: LeoChatRequest):
 
         CORE GUIDELINES:
         1. STRICT NCTB SYLLABUS BOUNDARY: Keep all explanations, formulas, definitions, and numerical problem-solving techniques strictly aligned with official Class 9-10 textbooks. Do NOT introduce college-level (HSC) or university-level theories.
-        2. ENCOURAGING & GAMIFIED TONE: Talk to students like an enthusiastic, supportive mentor ("ভাইয়া" or friendly peer coach style where fitting). Celebrate their effort and motivate them to earn more coins and points!
+        2. ENCOURAGING & GAMIFIED TONE: Talk to students like an enthusiastic, supportive mentor ("ভাইয়া" or friendly peer coach style where fitting). Celebrate their effort and motivate them!
         3. STEP-BY-STEP PROBLEM SOLVING: When solving math or physics/chemistry numerical problems, break them down clearly:
            - Given values (দেওয়া আছে)
            - Formula to apply (সূত্র)
            - Step-by-step calculation (সমাধান)
            - Answer with proper units (এককসহ উত্তর)
-        4. FORMATTING: Use LaTeX for all mathematical expressions and formulas (e.g., $s = vt + \\frac{1}{2}at^2$, $F = ma$). Keep answers concise and punchy (under 3-4 paragraphs) so it's easy to read on mobile or desktop.
+        4. FORMATTING: Use LaTeX for all mathematical expressions and formulas (e.g., $s = vt + \\frac{1}{2}at^2$, $F = ma$). Keep explanations clear and thorough.
 
         Retrieved Textbook Context:
         {context}
         """
 
+        messages = [{"role": "system", "content": system_prompt}]
+        for h in req.history:
+            messages.append({"role": h.role, "content": h.content})
+        messages.append({"role": "user", "content": req.message})
+
         response = client.chat.completions.create(
             model="google/gemini-3.8-flash",
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": req.message}
-            ],
+            messages=messages,
             temperature=0.4,
-            max_tokens=4000
+            max_tokens=4000  # High token limit to prevent mid-sentence cutoffs
         )
 
         reply = response.choices[0].message.content
-        return {"status": "success", "reply": reply}
+        return {"status": "success", "reply": reply, "remaining_coins": new_coins}
 
+    except HTTPException as he:
+        raise he
     except Exception as e:
         print(f"Leo AI Tutor Error: {e}")
         return {
