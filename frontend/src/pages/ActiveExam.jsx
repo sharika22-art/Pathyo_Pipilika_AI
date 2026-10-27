@@ -8,7 +8,6 @@ import 'katex/dist/katex.min.css';
 function renderLaTeX(text) {
   if (!text || typeof text !== 'string') return text;
   
-  // Split by $$...$$ for block math or $...$ for inline math
   const parts = text.split(/(\$\$[\s\S]*?\$\$|\$[^\$]+?\$)/g);
   return parts.map((part, i) => {
     try {
@@ -132,7 +131,7 @@ export default function ActiveExam() {
     }
   }, [questions, syllabusId, difficulty, navigate, isSubmitting]);
 
-  // Anti-Cheat: Difficulty-based penalties & auto-submission logic
+  // Anti-Cheat & Anti-Copy Protection Effect
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (document.hidden) {
@@ -150,9 +149,30 @@ export default function ActiveExam() {
       }
     };
 
+    const handleKeyDown = (e) => {
+      if (
+        (e.ctrlKey && (e.key === 'c' || e.key === 'C' || e.key === 'x' || e.key === 'X' || e.key === 'a' || e.key === 'A' || e.key === 'u' || e.key === 'U')) ||
+        e.key === 'F12' ||
+        (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'i' || e.key === 'C' || e.key === 'c' || e.key === 'J' || e.key === 'j'))
+      ) {
+        e.preventDefault();
+        setWarningMessage("⚠️ Copying text or opening developer tools is restricted during active exams!");
+      }
+    };
+
+    const handleCopy = (e) => {
+      e.preventDefault();
+      setWarningMessage("⚠️ Copying exam questions is strictly prohibited!");
+    };
+
     document.addEventListener("visibilitychange", handleVisibilityChange);
+    document.addEventListener("keydown", handleKeyDown);
+    document.addEventListener("copy", handleCopy);
+
     return () => {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
+      document.removeEventListener("keydown", handleKeyDown);
+      document.removeEventListener("copy", handleCopy);
     };
   }, [difficulty, finishExam]);
 
@@ -167,7 +187,7 @@ export default function ActiveExam() {
 
   // Countdown timer effect
   useEffect(() => {
-    if (questions.length === 0) return;
+    if (questions.length === 0 || isSubmitting) return;
     if (timeLeft <= 0) {
       handleNext();
       return;
@@ -176,7 +196,7 @@ export default function ActiveExam() {
       setTimeLeft((prev) => prev - 1);
     }, 1000);
     return () => clearInterval(timer);
-  }, [timeLeft, questions.length, handleNext]);
+  }, [timeLeft, questions.length, handleNext, isSubmitting]);
 
   const handleSelectOption = (optionText) => {
     setSelectedAnswers({
@@ -187,7 +207,7 @@ export default function ActiveExam() {
 
   if (questions.length === 0) {
     return (
-      <div className="max-w-2xl mx-auto p-12 text-center text-white">
+      <div className="max-w-2xl mx-auto p-12 text-center text-white select-none">
         <h2 className="text-2xl font-bold mb-4">No Active Quiz Found</h2>
         <p className="text-slate-400 mb-6">Please configure your mission and generate an exam first.</p>
         <button 
@@ -204,9 +224,12 @@ export default function ActiveExam() {
   const currentQ = questions[currentIndex] || {};
 
   return (
-    <div className="max-w-2xl mx-auto p-6 pt-16">
+    <div 
+      className="max-w-2xl mx-auto p-6 pt-16 select-none"
+      onContextMenu={(e) => e.preventDefault()}
+    >
       {warningMessage && (
-        <div className="bg-red-600/20 border border-red-500 text-red-300 p-4 rounded-xl mb-6 flex items-center justify-between animate-bounce">
+        <div className="bg-red-600/20 border border-red-500 text-red-300 p-4 rounded-xl mb-6 flex items-center justify-between">
           <span className="font-bold">{warningMessage}</span>
           <button type="button" onClick={() => setWarningMessage(null)} className="text-red-400 font-bold px-2">✕</button>
         </div>
@@ -230,37 +253,56 @@ export default function ActiveExam() {
 
         {/* Display Matplotlib graph if image_url is provided */}
         {currentQ.image_url && (
-          <div className="mb-6 flex justify-center bg-slate-900 p-4 rounded-xl border border-slate-700">
+          <div className="mb-6 flex justify-center bg-slate-900 p-4 rounded-xl border border-slate-700 pointer-events-none">
             <img 
               src={`${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:8000'}/${currentQ.image_url}`} 
-              alt="Physics Graph" 
-              className="max-h-64 rounded-lg object-contain"
+              alt="Question Visual" 
+              className="max-h-64 rounded-lg object-contain select-none"
             />
           </div>
         )}
         
-        {/* Strictly vertical stack layout ensuring each option is on its own separate line */}
-        <div className="flex flex-col space-y-3 w-full">
+        {/* Strictly vertical stack layout forced via inline styles to override global CSS conflicts */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', width: '100%' }}>
           {currentQ.options?.map((option, idx) => {
             const isSelected = selectedAnswers[currentIndex] === option.text;
             return (
               <label
                 key={idx}
                 onClick={() => handleSelectOption(option.text)}
-                className={`w-full text-left p-4 rounded-xl border font-medium transition-all flex items-center space-x-4 cursor-pointer block ${
-                  isSelected 
-                    ? 'bg-blue-600/30 border-blue-500 text-white shadow-[0_0_15px_rgba(37,99,235,0.4)]' 
-                    : 'bg-slate-900 border-slate-700 text-slate-300 hover:border-slate-500 hover:bg-slate-800/50'
-                }`}
+                style={{
+                  display: 'flex',
+                  flexDirection: 'row',
+                  alignItems: 'flex-start',
+                  gap: '16px',
+                  width: '100%',
+                  padding: '16px',
+                  borderRadius: '12px',
+                  border: isSelected ? '2px solid #3b82f6' : '1px solid #334155',
+                  backgroundColor: isSelected ? 'rgba(37, 99, 235, 0.25)' : '#0f172a',
+                  color: isSelected ? '#ffffff' : '#cbd5e1',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                  boxShadow: isSelected ? '0 0 15px rgba(37, 99, 235, 0.4)' : 'none'
+                }}
               >
                 <input
                   type="radio"
                   name={`question-${currentIndex}`}
                   checked={isSelected}
                   onChange={() => handleSelectOption(option.text)}
-                  className="w-4 h-4 text-blue-600 bg-slate-900 border-slate-600 focus:ring-blue-500 cursor-pointer shrink-0"
+                  style={{
+                    marginTop: '3px',
+                    width: '18px',
+                    height: '18px',
+                    accentColor: '#3b82f6',
+                    cursor: 'pointer',
+                    flexShrink: 0
+                  }}
                 />
-                <span className="flex-1">{renderLaTeX(option.text)}</span>
+                <span style={{ flex: 1, wordBreak: 'break-word', lineHeight: '1.6' }}>
+                  {renderLaTeX(option.text)}
+                </span>
               </label>
             );
           })}
@@ -272,7 +314,7 @@ export default function ActiveExam() {
           type="button"
           disabled={isSubmitting}
           onClick={handleNext}
-          className="bg-blue-600 hover:bg-blue-500 disabled:bg-blue-800 text-white font-bold px-8 py-3 rounded-xl transition-all shadow-lg"
+          className="bg-blue-600 hover:bg-blue-500 disabled:bg-blue-800 text-white font-bold px-8 py-3 rounded-xl transition-all shadow-lg cursor-pointer"
         >
           {isSubmitting ? 'Logging to Database...' : currentIndex === questions.length - 1 ? 'Submit Exam 🚀' : 'Next Question ➡'}
         </button>
