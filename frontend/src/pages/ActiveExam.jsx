@@ -207,13 +207,21 @@ export default function ActiveExam() {
 
   if (questions.length === 0) {
     return (
-      <div className="max-w-2xl mx-auto p-12 text-center text-white select-none">
-        <h2 className="text-2xl font-bold mb-4">No Active Quiz Found</h2>
-        <p className="text-slate-400 mb-6">Please configure your mission and generate an exam first.</p>
+      <div style={{ maxWidth: '600px', margin: '80px auto', padding: '40px', textAlign: 'center', color: '#fff' }}>
+        <h2 style={{ fontSize: '24px', fontWeight: 800, marginBottom: '16px' }}>No Active Quiz Found</h2>
+        <p style={{ color: '#94a3b8', marginBottom: '24px' }}>Please configure your mission and generate an exam first.</p>
         <button 
           type="button"
           onClick={() => navigate('/exam')}
-          className="bg-blue-600 px-6 py-3 rounded-xl font-bold hover:bg-blue-500 transition-all"
+          style={{
+            background: 'linear-gradient(135deg, #2563eb, #4f46e5)',
+            color: '#fff',
+            fontWeight: 800,
+            padding: '12px 24px',
+            borderRadius: '12px',
+            border: 'none',
+            cursor: 'pointer'
+          }}
         >
           Go to Exam Setup ⚙️
         </button>
@@ -222,48 +230,112 @@ export default function ActiveExam() {
   }
 
   const currentQ = questions[currentIndex] || {};
+  const progressPercentage = ((currentIndex + 1) / questions.length) * 100;
 
   return (
     <div 
-      className="max-w-2xl mx-auto p-6 pt-16 select-none"
+      style={{ maxWidth: '820px', margin: '20px auto', padding: '0 24px 60px 24px', userSelect: 'none' }}
       onContextMenu={(e) => e.preventDefault()}
     >
+      {/* Warning Notification Banner */}
       {warningMessage && (
-        <div className="bg-red-600/20 border border-red-500 text-red-300 p-4 rounded-xl mb-6 flex items-center justify-between">
-          <span className="font-bold">{warningMessage}</span>
-          <button type="button" onClick={() => setWarningMessage(null)} className="text-red-400 font-bold px-2">✕</button>
+        <div style={{
+          backgroundColor: 'rgba(239, 68, 68, 0.2)',
+          border: '1px solid rgba(239, 68, 68, 0.6)',
+          color: '#fca5a5',
+          padding: '16px 20px',
+          borderRadius: '16px',
+          marginBottom: '20px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          backdropFilter: 'blur(10px)',
+          boxShadow: '0 10px 25px rgba(239, 68, 68, 0.2)'
+        }}>
+          <span style={{ fontWeight: 700, fontSize: '14px' }}>{warningMessage}</span>
+          <button type="button" onClick={() => setWarningMessage(null)} style={{ background: 'none', border: 'none', color: '#f87171', fontWeight: 900, cursor: 'pointer', fontSize: '16px' }}>✕</button>
         </div>
       )}
 
-      <div className="flex justify-between items-center mb-8 bg-slate-800 p-4 rounded-xl border border-slate-700">
-        <span className="text-slate-400 font-medium">Question {currentIndex + 1} of {questions.length}</span>
-        <div className="flex items-center gap-4">
-          <span className="text-xs text-slate-400">Tab Switches: <strong className="text-red-400">{tabSwitches}</strong></span>
-          <div className="flex items-center gap-2 bg-slate-900 px-4 py-2 rounded-lg border border-slate-700">
-            <span className="text-red-400">⏳</span>
-            <span className={`font-bold ${timeLeft < 10 ? 'text-red-500 animate-pulse' : 'text-white'}`}>{timeLeft}s</span>
-          </div>
+      {/* Top HUD Telemetry Bar */}
+      <div style={{
+        display: 'flex',
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        flexWrap: 'wrap',
+        gap: '16px',
+        backgroundColor: 'rgba(15, 23, 42, 0.85)',
+        backdropFilter: 'blur(16px)',
+        border: '1px solid rgba(148, 163, 184, 0.25)',
+        borderRadius: '18px',
+        padding: '18px 24px',
+        marginBottom: '24px',
+        boxShadow: '0 10px 30px rgba(0, 0, 0, 0.5)'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <span style={{ fontSize: '13px', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.8px' }}>
+            Question {currentIndex + 1} of {questions.length}
+          </span>
+          <span style={{ color: '#475569' }}>•</span>
+          <span style={{ fontSize: '13px', fontWeight: 800, color: '#f87171' }}>
+            Tab Switches: <strong style={{ color: '#ffffff' }}>{tabSwitches}</strong> ({difficulty} Mode)
+          </span>
+        </div>
+
+        {/* Countdown Timer */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '10px',
+          backgroundColor: 'rgba(2, 6, 23, 0.8)',
+          padding: '8px 16px',
+          borderRadius: '12px',
+          border: timeLeft < 10 ? '1px solid rgba(239, 68, 68, 0.8)' : '1px solid rgba(51, 65, 85, 0.8)',
+          boxShadow: timeLeft < 10 ? '0 0 15px rgba(239, 68, 68, 0.4)' : 'none'
+        }}>
+          <span style={{ fontSize: '16px' }}>⏳</span>
+          <span style={{ fontSize: '15px', fontWeight: 900, color: timeLeft < 10 ? '#ef4444' : '#ffffff' }}>
+            {timeLeft}s
+          </span>
         </div>
       </div>
 
-      <div className="bg-slate-800 rounded-2xl p-8 border border-slate-700 shadow-xl mb-6">
-        <h2 className="text-2xl font-bold text-white mb-6 leading-relaxed">
+      {/* Main Question Card */}
+      <div style={{
+        background: 'linear-gradient(145deg, rgba(15, 23, 42, 0.9), rgba(2, 6, 23, 0.95))',
+        backdropFilter: 'blur(20px)',
+        border: '2px solid rgba(59, 130, 246, 0.35)',
+        borderRadius: '24px',
+        padding: '36px',
+        boxShadow: '0 20px 50px rgba(0, 0, 0, 0.6)',
+        position: 'relative',
+        overflow: 'hidden',
+        marginBottom: '24px'
+      }}>
+        {/* Progress Bar Top Line */}
+        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '4px', backgroundColor: 'rgba(51, 65, 85, 0.6)' }}>
+          <div style={{ height: '100%', width: `${progressPercentage}%`, background: 'linear-gradient(90deg, #3b82f6, #8b5cf6)', transition: 'width 0.4s ease' }} />
+        </div>
+
+        {/* Question Text */}
+        <h2 style={{ fontSize: '21px', fontWeight: 800, color: '#ffffff', marginBottom: '24px', lineHeight: '1.6' }}>
           {renderLaTeX(currentQ.question || "Loading question...")}
         </h2>
 
-        {/* Display Matplotlib graph if image_url is provided */}
+        {/* Optional Visual / Matplotlib Graph */}
         {currentQ.image_url && (
-          <div className="mb-6 flex justify-center bg-slate-900 p-4 rounded-xl border border-slate-700 pointer-events-none">
+          <div style={{ marginBottom: '28px', display: 'flex', justifyContent: 'center', backgroundColor: '#050816', padding: '16px', borderRadius: '16px', border: '1px solid rgba(51, 65, 85, 0.8)' }}>
             <img 
               src={`${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:8000'}/${currentQ.image_url}`} 
               alt="Question Visual" 
-              className="max-h-64 rounded-lg object-contain select-none"
+              style={{ maxHeight: '260px', borderRadius: '10px', objectFit: 'contain' }}
             />
           </div>
         )}
-        
-        {/* Strictly vertical stack layout forced via inline styles to override global CSS conflicts */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', width: '100%' }}>
+
+        {/* Options List */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', width: '100%' }}>
           {currentQ.options?.map((option, idx) => {
             const isSelected = selectedAnswers[currentIndex] === option.text;
             return (
@@ -276,14 +348,14 @@ export default function ActiveExam() {
                   alignItems: 'flex-start',
                   gap: '16px',
                   width: '100%',
-                  padding: '16px',
-                  borderRadius: '12px',
-                  border: isSelected ? '2px solid #3b82f6' : '1px solid #334155',
-                  backgroundColor: isSelected ? 'rgba(37, 99, 235, 0.25)' : '#0f172a',
+                  padding: '18px 20px',
+                  borderRadius: '16px',
+                  border: isSelected ? '2px solid #3b82f6' : '2px solid rgba(51, 65, 85, 0.7)',
+                  backgroundColor: isSelected ? 'rgba(37, 99, 235, 0.22)' : 'rgba(2, 6, 23, 0.7)',
                   color: isSelected ? '#ffffff' : '#cbd5e1',
                   cursor: 'pointer',
                   transition: 'all 0.2s ease',
-                  boxShadow: isSelected ? '0 0 15px rgba(37, 99, 235, 0.4)' : 'none'
+                  boxShadow: isSelected ? '0 0 20px rgba(37, 99, 235, 0.35)' : 'none',
                 }}
               >
                 <input
@@ -300,7 +372,7 @@ export default function ActiveExam() {
                     flexShrink: 0
                   }}
                 />
-                <span style={{ flex: 1, wordBreak: 'break-word', lineHeight: '1.6' }}>
+                <span style={{ flex: 1, wordBreak: 'break-word', lineHeight: '1.6', fontSize: '16px', fontWeight: 600 }}>
                   {renderLaTeX(option.text)}
                 </span>
               </label>
@@ -309,14 +381,26 @@ export default function ActiveExam() {
         </div>
       </div>
 
-      <div className="flex justify-end">
+      {/* Bottom Action Bar */}
+      <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
         <button
           type="button"
           disabled={isSubmitting}
           onClick={handleNext}
-          className="bg-blue-600 hover:bg-blue-500 disabled:bg-blue-800 text-white font-bold px-8 py-3 rounded-xl transition-all shadow-lg cursor-pointer"
+          style={{
+            background: 'linear-gradient(135deg, #2563eb, #7c3aed)',
+            color: '#ffffff',
+            fontWeight: 900,
+            fontSize: '16px',
+            padding: '16px 36px',
+            borderRadius: '16px',
+            border: '1px solid rgba(147, 197, 253, 0.4)',
+            cursor: isSubmitting ? 'not-allowed' : 'pointer',
+            boxShadow: '0 10px 30px rgba(37, 99, 235, 0.45)',
+            transition: 'all 0.2s ease',
+          }}
         >
-          {isSubmitting ? 'Logging to Database...' : currentIndex === questions.length - 1 ? 'Submit Exam 🚀' : 'Next Question ➡'}
+          {isSubmitting ? '⏳ Logging telemetry...' : currentIndex === questions.length - 1 ? 'Submit Exam 🚀' : 'Next Question ➡'}
         </button>
       </div>
     </div>
