@@ -3,7 +3,7 @@ import re
 from openai import OpenAI
 from database.client import db
 
-def call_openrouter_safely(client, model, messages, response_format=None, temperature=0.7, initial_max_tokens=2000):
+def call_openrouter_safely(client, model, messages, response_format=None, temperature=0.7, initial_max_tokens=20000):
     """Automatically catches OpenRouter 402 credit limit errors and retries with adjusted tokens."""
     current_max_tokens = initial_max_tokens
     for _ in range(3):
@@ -30,14 +30,13 @@ def call_openrouter_safely(client, model, messages, response_format=None, temper
     raise Exception("Failed to complete LLM call after multiple token adjustments.")
 
 def update_true_mastery(user_id: str, grade: str, subject: str):
-    """Calculates mastery percentage based on passing 'Medium' (or higher) difficulty quizzes."""
+    """Calculates mastery percentage based on passing 'Medium' or 'Hard' difficulty quizzes."""
     syllabus_response = db.table("syllabus").select("id").eq("grade", grade).eq("subject", subject).execute()
     total_chapters = len(syllabus_response.data)
     
     if total_chapters == 0:
         return 0.00
         
-    # Updated to check for Medium (or Hard) mastery benchmark
     mastered_response = db.table("exam_history").select("syllabus_id").eq("user_id", user_id)\
         .in_("difficulty", ["Medium", "Hard"]).gte("score_percentage", 80).execute()
         
@@ -96,7 +95,7 @@ def generate_coach_message(user_id: str) -> str:
             model="google/gemini-3.8-flash",
             messages=[{"role": "user", "content": prompt}],
             temperature=0.7,
-            initial_max_tokens=2000
+            initial_max_tokens=20000
         )
         return response.choices[0].message.content.strip()
     except Exception as e:
