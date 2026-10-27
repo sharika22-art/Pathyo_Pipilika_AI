@@ -23,6 +23,7 @@ from agents.generator import generate_quiz, retrieve_comprehensive_context
 from agents.reviewer import review_and_verify_quiz
 
 from fastapi.staticfiles import StaticFiles
+from openai import OpenAI
 
 app = FastAPI(title="Gamified Edu Platform API")
 
@@ -298,9 +299,8 @@ def generate_user_progress_graph(user_id: str):
     """
     try:
         res = db.table("exam_history") \
-            .select("correct_answers, total_questions, difficulty, completed_at") \
+            .select("correct_answers, total_questions, difficulty") \
             .eq("user_id", user_id) \
-            .order("completed_at", desc=False) \
             .limit(8) \
             .execute()
 
@@ -351,3 +351,59 @@ def generate_user_progress_graph(user_id: str):
     except Exception as e:
         print(f"Progress Graph Generation Error: {e}")
         return {"graph_url": None}
+
+class LeoChatRequest(BaseModel):
+    message: str
+    subject: str = "General Science"
+
+@app.post("/leo-chat")
+def leo_chat_endpoint(req: LeoChatRequest):
+    """
+    Endpoint for the persistent Leo AI Tutor sidebar. 
+    Retrieves relevant textbook context via RAG and generates a targeted NCTB explanation.
+    """
+    try:
+        client = OpenAI(
+            base_url="https://openrouter.ai/api/v1",
+            api_key=os.environ.get("OPENAI_API_KEY") or os.environ.get("OPENROUTER_API_KEY"),
+        )
+
+        context = retrieve_comprehensive_context(req.subject, req.message)
+
+        system_prompt = f"""
+        You are Leo, the official AI study companion and tutor for Shikho AI, specialized in the Bangladesh NCTB Class 9-10 (SSC) curriculum.
+        Your goal is to help students master Physics, Chemistry, Biology, General Math, Higher Math, and other SSC subjects.
+
+        CORE GUIDELINES:
+        1. STRICT NCTB SYLLABUS BOUNDARY: Keep all explanations, formulas, definitions, and numerical problem-solving techniques strictly aligned with official Class 9-10 textbooks. Do NOT introduce college-level (HSC) or university-level theories.
+        2. ENCOURAGING & GAMIFIED TONE: Talk to students like an enthusiastic, supportive mentor ("ভাইয়া" or friendly peer coach style where fitting). Celebrate their effort and motivate them to earn more coins and points!
+        3. STEP-BY-STEP PROBLEM SOLVING: When solving math or physics/chemistry numerical problems, break them down clearly:
+           - Given values (দেওয়া আছে)
+           - Formula to apply (সূত্র)
+           - Step-by-step calculation (সমাধান)
+           - Answer with proper units (এককসহ উত্তর)
+        4. FORMATTING: Use LaTeX for all mathematical expressions and formulas (e.g., $s = vt + \\frac{1}{2}at^2$, $F = ma$). Keep answers concise and punchy (under 3-4 paragraphs) so it's easy to read on mobile or desktop.
+
+        Retrieved Textbook Context:
+        {context}
+        """
+
+        response = client.chat.completions.create(
+            model="google/gemini-3.8-flash",
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": req.message}
+            ],
+            temperature=0.4,
+            max_tokens=4000
+        )
+
+        reply = response.choices[0].message.content
+        return {"status": "success", "reply": reply}
+
+    except Exception as e:
+        print(f"Leo AI Tutor Error: {e}")
+        return {
+            "status": "error", 
+            "reply": "My neural link stuttered momentarily! Remember to break down your given values and apply standard SSC formulas step-by-step."
+        }
