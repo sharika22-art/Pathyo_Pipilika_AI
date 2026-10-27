@@ -38,7 +38,7 @@ def update_true_mastery(user_id: str, grade: str, subject: str):
         return 0.00
         
     mastered_response = db.table("exam_history").select("syllabus_id").eq("user_id", user_id)\
-        .in_("difficulty", ["Medium", "Hard"]).gte("score_percentage", 80).execute()
+        .in_("difficulty", ["Medium", "Hard"]).gte("score_percentage", 75).execute()
         
     mastered_chapter_ids = {record["syllabus_id"] for record in mastered_response.data}
     

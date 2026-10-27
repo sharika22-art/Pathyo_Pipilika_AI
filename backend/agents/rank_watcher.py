@@ -60,7 +60,7 @@ def process_exam_submission(submission: ExamSubmission):
         student_grade = user_data["grade"]
 
         current_mastery_percentage = user_data.get("mastery_percentage", 0.00)
-        if submission.difficulty in ["Medium", "Hard"] and score_percentage >= 80.0:
+        if submission.difficulty in ["Medium", "Hard"] and score_percentage >= 75.0:
             current_mastery_percentage = max(current_mastery_percentage, 100.0)
 
         db.table("users").update({
