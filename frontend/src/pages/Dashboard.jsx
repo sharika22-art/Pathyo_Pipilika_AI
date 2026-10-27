@@ -5,6 +5,7 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const [userData, setUserData] = useState(null);
   const [coachMessage, setCoachMessage] = useState("Analyzing your performance metrics...");
+  const [graphUrl, setGraphUrl] = useState(null);
 
   useEffect(() => {
     const currentUserId = localStorage.getItem('user_id');
@@ -17,6 +18,7 @@ export default function Dashboard() {
     const cachedCoachMsg = localStorage.getItem(`coach_msg_${currentUserId}`);
     const cachedPoints = localStorage.getItem(`cached_pts_${currentUserId}`);
 
+    // Fetch dashboard user profile & strategic AI coach message
     fetch(`${import.meta.env.VITE_API_URL}/dashboard/${currentUserId}`)
       .then((res) => {
         if (!res.ok) throw new Error("Failed to fetch dashboard");
@@ -46,6 +48,17 @@ export default function Dashboard() {
           setCoachMessage(cachedCoachMsg);
         }
       });
+
+    // Fetch actual server-rendered Matplotlib progress curve graph
+    fetch(`${import.meta.env.VITE_API_URL}/user-progress-graph/${currentUserId}`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.graph_url) {
+          const baseServerUrl = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:8000';
+          setGraphUrl(`${baseServerUrl}/${data.graph_url}`);
+        }
+      })
+      .catch((err) => console.error("Error loading progress graph:", err));
   }, [navigate]);
 
   if (!userData) {
@@ -55,38 +68,6 @@ export default function Dashboard() {
       </div>
     );
   }
-
-  // Generate dynamic curve points anchored to the student's actual mastery & points
-  const baseMastery = Number(userData.mastery_percentage) || 25;
-  const dataPoints = [
-    Math.max(12, Math.round(baseMastery * 0.45)),
-    Math.max(20, Math.round(baseMastery * 0.65)),
-    Math.max(18, Math.round(baseMastery * 0.58)),
-    Math.max(32, Math.round(baseMastery * 0.85)),
-    Math.min(95, Math.round(baseMastery * 1.15)),
-    Math.min(100, Math.max(25, Math.round(baseMastery))),
-  ];
-
-  // SVG coordinates mapping (Width: 680, Height: 240)
-  const xCoords = [50, 165, 280, 395, 510, 625];
-  const yCoords = dataPoints.map((val) => 200 - (val / 100) * 160);
-
-  // Build smooth Cubic Bezier SVG path
-  const buildSmoothCurve = (xs, ys) => {
-    if (xs.length === 0) return '';
-    let path = `M ${xs[0]},${ys[0]}`;
-    for (let i = 0; i < xs.length - 1; i++) {
-      const cpX1 = xs[i] + (xs[i + 1] - xs[i]) / 2;
-      const cpY1 = ys[i];
-      const cpX2 = xs[i] + (xs[i + 1] - xs[i]) / 2;
-      const cpY2 = ys[i + 1];
-      path += ` C ${cpX1},${cpY1} ${cpX2},${cpY2} ${xs[i + 1]},${ys[i + 1]}`;
-    }
-    return path;
-  };
-
-  const smoothLinePath = buildSmoothCurve(xCoords, yCoords);
-  const areaFillPath = `${smoothLinePath} L ${xCoords[xCoords.length - 1]},210 L ${xCoords[0]},210 Z`;
 
   return (
     <div
@@ -203,7 +184,7 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Dynamic Glowing Curve Graph Card */}
+      {/* Actual Matplotlib Server-Rendered Progress Curve Graph Card */}
       <div
         style={{
           backgroundColor: 'rgba(15, 23, 42, 0.88)',
@@ -226,10 +207,10 @@ export default function Dashboard() {
         >
           <div>
             <h2 style={{ margin: 0, fontSize: '20px', fontWeight: 800, color: '#ffffff' }}>
-              📈 Performance & Mastery Trajectory Curve
+              📈 Actual Performance Progression Curve
             </h2>
             <p style={{ margin: '4px 0 0 0', fontSize: '13px', color: '#94a3b8' }}>
-              Dynamic progression wave across your SSC curriculum milestones
+              Server-rendered Matplotlib graph tracking your mission accuracy over time
             </p>
           </div>
           <span
@@ -243,82 +224,39 @@ export default function Dashboard() {
               fontWeight: 800,
             }}
           >
-            Live Curve Telemetry
+            Live Telemetry Feed
           </span>
         </div>
 
-        {/* SVG Smooth Curve Plot */}
+        {/* Graph Display Container */}
         <div
           style={{
             backgroundColor: '#050816',
             borderRadius: '18px',
             border: '1px solid rgba(51, 65, 85, 0.8)',
-            padding: '20px 16px 12px 16px',
-            overflowX: 'auto',
+            padding: '20px',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItem: 'center',
+            minHeight: '260px',
           }}
         >
-          <svg viewBox="0 0 680 245" style={{ width: '100%', height: 'auto', minWidth: '500px', display: 'block' }}>
-            <defs>
-              <linearGradient id="curveAreaGrad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#38bdf8" stopOpacity="0.45" />
-                <stop offset="50%" stopColor="#6366f1" stopOpacity="0.18" />
-                <stop offset="100%" stopColor="#050816" stopOpacity="0.0" />
-              </linearGradient>
-              <linearGradient id="strokeGrad" x1="0" y1="0" x2="1" y2="0">
-                <stop offset="0%" stopColor="#38bdf8" />
-                <stop offset="50%" stopColor="#818cf8" />
-                <stop offset="100%" stopColor="#34d399" />
-              </linearGradient>
-              <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
-                <feGaussianBlur stdDeviation="4" result="blur" />
-                <feComposite in="SourceGraphic" in2="blur" operator="over" />
-              </filter>
-            </defs>
-
-            {/* Horizontal Grid Lines */}
-            {[0, 25, 50, 75, 100].map((pct, i) => {
-              const y = 200 - (pct / 100) * 160;
-              return (
-                <g key={i}>
-                  <line x1="45" y1={y} x2="645" y2={y} stroke="#1e293b" strokeDasharray="5,5" strokeWidth="1" />
-                  <text x="12" y={y + 4} fill="#64748b" fontSize="11" fontWeight="700">
-                    {pct}%
-                  </text>
-                </g>
-              );
-            })}
-
-            {/* Shaded Gradient Under Curve */}
-            <path d={areaFillPath} fill="url(#curveAreaGrad)" />
-
-            {/* Smooth Glowing Bezier Curve */}
-            <path
-              d={smoothLinePath}
-              fill="none"
-              stroke="url(#strokeGrad)"
-              strokeWidth="4"
-              filter="url(#glow)"
-              strokeLinecap="round"
+          {graphUrl ? (
+            <img
+              src={graphUrl}
+              alt="Student Progress Progression Curve"
+              style={{
+                borderRadius: '12px',
+                maxWidth: '100%',
+                height: 'auto',
+                boxShadow: '0 10px 30px rgba(0,0,0,0.5)',
+              }}
             />
-
-            {/* Data Nodes & Value Labels */}
-            {xCoords.map((x, idx) => {
-              const y = yCoords[idx];
-              const val = dataPoints[idx];
-              return (
-                <g key={idx}>
-                  <circle cx={x} cy={y} r="7" fill="#050816" stroke="#38bdf8" strokeWidth="3.5" />
-                  <rect x={x - 22} y={y - 30} width="44" height="20" rx="6" fill="#1e293b" stroke="#38bdf8" strokeWidth="1" />
-                  <text x={x} y={y - 16} textAnchor="middle" fill="#f8fafc" fontSize="11" fontWeight="800">
-                    {val}%
-                  </text>
-                  <text x={x} y="232" textAnchor="middle" fill="#94a3b8" fontSize="12" fontWeight="700">
-                    Stage {idx + 1}
-                  </text>
-                </g>
-              );
-            })}
-          </svg>
+          ) : (
+            <div style={{ color: '#64748b', fontSize: '14px', fontWeight: 600, alignSelf: 'center' }}>
+              Complete your first exam mission to generate your performance curve! 🚀
+            </div>
+          )}
         </div>
       </div>
     </div>
