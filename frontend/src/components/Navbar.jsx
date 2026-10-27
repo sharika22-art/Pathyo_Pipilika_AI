@@ -53,6 +53,7 @@ export default function Navbar() {
   const navItems = [
     { name: 'Dashboard', path: '/', icon: '📊' },
     { name: 'Quiz', path: '/exam', icon: '⚡' },
+    { name: 'History', path: '/history', icon: '📈' },
     { name: 'Leaderboard', path: '/leaderboard', icon: '🏆' },
     { name: 'Profile', path: '/profile', icon: '👤' },
   ];
@@ -63,7 +64,7 @@ export default function Navbar() {
         position: 'sticky',
         top: '16px',
         zIndex: 1000,
-        maxWidth: '1200px',
+        maxWidth: '1240px',
         margin: '0 auto 28px auto',
         padding: '0 20px',
       }}
@@ -127,7 +128,7 @@ export default function Navbar() {
             display: 'flex',
             flexDirection: 'row',
             alignItems: 'center',
-            gap: '10px',
+            gap: '8px',
             backgroundColor: 'rgba(2, 6, 23, 0.7)',
             padding: '6px',
             borderRadius: '14px',
@@ -146,10 +147,10 @@ export default function Navbar() {
                   display: 'flex',
                   flexDirection: 'row',
                   alignItems: 'center',
-                  gap: '8px',
-                  padding: '10px 18px',
+                  gap: '6px',
+                  padding: '10px 14px',
                   borderRadius: '10px',
-                  fontSize: '15px',
+                  fontSize: '14px',
                   fontWeight: 700,
                   cursor: 'pointer',
                   transition: 'all 0.2s ease',
@@ -159,7 +160,7 @@ export default function Navbar() {
                   boxShadow: isActive ? '0 4px 15px rgba(37, 99, 235, 0.4)' : 'none',
                 }}
               >
-                <span style={{ fontSize: '17px' }}>{item.icon}</span>
+                <span style={{ fontSize: '16px' }}>{item.icon}</span>
                 <span>{item.name}</span>
               </button>
             );

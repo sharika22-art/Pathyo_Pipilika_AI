@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, useNavigate } from 'react-router-dom';
 import Navbar from './components/Navbar';
+import LeoAITutor from './components/LeoAITutor';
 import Dashboard from './pages/Dashboard';
 import ExamSetup from './pages/ExamSetup';
 import ActiveExam from './pages/ActiveExam';
@@ -8,6 +9,7 @@ import ExamResult from './pages/ExamResult';
 import Onboarding from './pages/Onboarding';
 import Leaderboard from './pages/Leaderboard';
 import Profile from './pages/Profile';
+import History from './pages/History';
 import 'katex/dist/katex.min.css';
 
 function RequireAuth({ children }) {
@@ -92,10 +94,12 @@ export default function App() {
             <Route path="/exam" element={<RequireAuth><ExamSetup /></RequireAuth>} />
             <Route path="/exam/active" element={<RequireAuth><ActiveExam /></RequireAuth>} />
             <Route path="/exam/result" element={<RequireAuth><ExamResult /></RequireAuth>} />
+            <Route path="/history" element={<RequireAuth><History /></RequireAuth>} />
             <Route path="/leaderboard" element={<RequireAuth><Leaderboard /></RequireAuth>} />
             <Route path="/profile" element={<RequireAuth><Profile /></RequireAuth>} />
           </Routes>
         </main>
+        <LeoAITutor />
       </div>
     </BrowserRouter>
   );

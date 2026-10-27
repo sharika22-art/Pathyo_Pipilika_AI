@@ -23,58 +23,109 @@ export default function History() {
   }, [currentUserId]);
 
   return (
-    <div className="max-w-3xl mx-auto p-6 pt-12">
-      <div className="flex justify-between items-center mb-8">
+    <div style={{ maxWidth: '800px', margin: '0 auto', padding: '32px 20px' }}>
+      {/* Header */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
         <div>
-          <h1 className="text-3xl font-bold text-white mb-1">📈 Exam History & Analytics</h1>
-          <p className="text-slate-400">Review your past performance and track your growth.</p>
+          <h1 style={{ margin: 0, fontSize: '28px', fontWeight: 900, color: '#ffffff', letterSpacing: '-0.5px' }}>
+            📈 Exam History & Analytics
+          </h1>
+          <p style={{ margin: '6px 0 0 0', fontSize: '14px', color: '#94a3b8', fontWeight: 500 }}>
+            Review your past mission performance, scores, and anti-cheat telemetry.
+          </p>
         </div>
-        <button 
+        <button
+          type="button"
           onClick={() => navigate('/')}
-          className="bg-slate-800 text-slate-300 px-4 py-2 rounded-lg border border-slate-700 hover:text-white transition-all"
+          style={{
+            background: 'rgba(30, 41, 59, 0.8)',
+            color: '#cbd5e1',
+            border: '1px solid rgba(71, 85, 105, 0.8)',
+            borderRadius: '12px',
+            padding: '10px 18px',
+            fontSize: '14px',
+            fontWeight: 700,
+            cursor: 'pointer',
+            transition: 'all 0.2s ease',
+          }}
         >
           Back to Dashboard
         </button>
       </div>
 
       {loading ? (
-        <div className="text-center text-slate-400 py-12">Loading history...</div>
+        <div style={{ textAlign: 'center', color: '#94a3b8', padding: '60px 0', fontSize: '16px', fontWeight: 600 }}>
+          Loading mission history... ⚡
+        </div>
       ) : (
-        <div className="space-y-4">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           {history.map((exam, index) => {
             const percentage = Math.round((exam.correct_answers / exam.total_questions) * 100);
-            const dateStr = new Date(exam.created_at).toLocaleDateString(undefined, {
-              month: 'short',
-              day: 'numeric',
-              year: 'numeric',
-            });
+            
+            const dateStr = exam.completed_at && !isNaN(new Date(exam.completed_at).getTime())
+              ? new Date(exam.completed_at).toLocaleDateString(undefined, {
+                  month: 'short',
+                  day: 'numeric',
+                  year: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit',
+                })
+              : 'Recent Mission';
+
+            const scoreColor = percentage >= 80 ? '#34d399' : percentage >= 50 ? '#facc15' : '#f87171';
 
             return (
-              <div 
+              <div
                 key={exam.id || index}
-                className="bg-slate-800 rounded-xl p-6 border border-slate-700 shadow-lg flex items-center justify-between"
+                style={{
+                  background: 'linear-gradient(145deg, rgba(15, 23, 42, 0.9), rgba(2, 6, 23, 0.95))',
+                  border: '1px solid rgba(71, 85, 105, 0.6)',
+                  borderRadius: '18px',
+                  padding: '22px 24px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  boxShadow: '0 10px 30px rgba(0, 0, 0, 0.5)',
+                }}
               >
                 <div>
-                  <div className="flex items-center gap-3 mb-2">
-                    <span className="bg-blue-600/20 border border-blue-500/40 text-blue-400 text-xs px-3 py-1 rounded-full font-bold">
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '10px' }}>
+                    <span
+                      style={{
+                        backgroundColor: 'rgba(37, 99, 235, 0.2)',
+                        border: '1px solid rgba(59, 130, 246, 0.5)',
+                        color: '#60a5fa',
+                        fontSize: '11px',
+                        padding: '4px 10px',
+                        borderRadius: '999px',
+                        fontWeight: 800,
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.5px',
+                      }}
+                    >
                       {exam.difficulty} Mode
                     </span>
-                    <span className="text-xs text-slate-400">{dateStr}</span>
+                    <span style={{ fontSize: '12px', color: '#94a3b8', fontWeight: 600 }}>{dateStr}</span>
                   </div>
-                  <p className="text-lg font-bold text-white">
+                  <div style={{ fontSize: '18px', fontWeight: 800, color: '#ffffff' }}>
                     Score: {exam.correct_answers} / {exam.total_questions} ({percentage}%)
-                  </p>
+                  </div>
                   {exam.tab_switches_detected > 0 && (
-                    <p className="text-xs text-red-400 mt-1">
+                    <div style={{ fontSize: '12px', color: '#f87171', marginTop: '6px', fontWeight: 700 }}>
                       ⚠️ Tab switches recorded: {exam.tab_switches_detected}
-                    </p>
+                    </div>
                   )}
                 </div>
 
-                <div className="text-right">
-                  <span className={`text-2xl font-black ${
-                    percentage >= 80 ? 'text-emerald-400' : percentage >= 50 ? 'text-yellow-400' : 'text-red-400'
-                  }`}>
+                <div style={{ textAlign: 'right' }}>
+                  <span
+                    style={{
+                      fontSize: '26px',
+                      fontWeight: 900,
+                      color: scoreColor,
+                      textShadow: `0 0 15px ${scoreColor}44`,
+                    }}
+                  >
                     {percentage}%
                   </span>
                 </div>
@@ -83,12 +134,37 @@ export default function History() {
           })}
 
           {history.length === 0 && (
-            <div className="bg-slate-800 rounded-2xl p-12 text-center border border-slate-700 text-slate-400">
-              <p className="text-lg font-bold mb-2">No exam history found yet!</p>
-              <p className="text-sm mb-6">Complete your first mission to populate your analytics.</p>
-              <button 
+            <div
+              style={{
+                background: 'linear-gradient(145deg, rgba(15, 23, 42, 0.9), rgba(2, 6, 23, 0.95))',
+                borderRadius: '24px',
+                padding: '60px 24px',
+                textAlign: 'center',
+                border: '1px solid rgba(71, 85, 105, 0.6)',
+                boxShadow: '0 20px 40px rgba(0, 0, 0, 0.5)',
+              }}
+            >
+              <div style={{ fontSize: '40px', marginBottom: '16px' }}>🚀</div>
+              <p style={{ margin: '0 0 8px 0', fontSize: '18px', fontWeight: 900, color: '#ffffff' }}>
+                No exam history found yet!
+              </p>
+              <p style={{ margin: '0 0 24px 0', fontSize: '14px', color: '#94a3b8', fontWeight: 500 }}>
+                Complete your first mission to populate your analytics and performance curve.
+              </p>
+              <button
+                type="button"
                 onClick={() => navigate('/exam')}
-                className="bg-blue-600 hover:bg-blue-500 text-white font-bold px-6 py-3 rounded-xl transition-all"
+                style={{
+                  background: 'linear-gradient(135deg, #2563eb, #7c3aed)',
+                  color: '#ffffff',
+                  border: '1px solid rgba(147, 197, 253, 0.4)',
+                  borderRadius: '14px',
+                  padding: '14px 28px',
+                  fontSize: '15px',
+                  fontWeight: 900,
+                  cursor: 'pointer',
+                  boxShadow: '0 10px 25px rgba(37, 99, 235, 0.4)',
+                }}
               >
                 Start an Exam ⚡
               </button>

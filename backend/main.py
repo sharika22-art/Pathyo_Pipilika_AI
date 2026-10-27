@@ -261,9 +261,9 @@ def get_leaderboard(grade: str):
 def get_exam_history(user_id: str):
     """Fetches past exam submissions for a given student ordered by most recent."""
     try:
-        res = db.table("exam_history").select("id, syllabus_id, difficulty, total_questions, correct_answers, tab_switches_detected, created_at")\
+        res = db.table("exam_history").select("id, syllabus_id, difficulty, total_questions, correct_answers, tab_switches_detected, completed_at")\
             .eq("user_id", user_id)\
-            .order("created_at", desc=True)\
+            .order("completed_at", desc=True)\
             .execute()
             
         return {"history": res.data}
