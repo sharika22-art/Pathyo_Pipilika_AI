@@ -3,11 +3,9 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import katex from 'katex';
 import 'katex/dist/katex.min.css';
 
-// Direct KaTeX rendering helper (immune to Vite export bugs)
 function renderLaTeX(text) {
   if (!text || typeof text !== 'string') return text;
   
-  // Split by $$...$$ for block math or $...$ for inline math
   const parts = text.split(/(\$\$[\s\S]*?\$\$|\$[^\$]+?\$)/g);
   return parts.map((part, i) => {
     try {
@@ -40,7 +38,6 @@ export default function ExamResult() {
 
   const { correctCount, total, questions, selectedAnswers, difficulty = "Medium", tabSwitches = 0 } = resultData;
 
-  // Calculate mark penalties according to your exact rules
   let penaltyMarks = 0;
   if (difficulty === "Easy") {
     penaltyMarks = tabSwitches * 2;
@@ -48,7 +45,6 @@ export default function ExamResult() {
     penaltyMarks = tabSwitches * 5;
   }
 
-  // Score floors at 0 if penalties exceed correct answers
   const finalMarks = Math.max(0, correctCount - penaltyMarks);
   const pointsEarned = finalMarks * 10;
   const coinsEarned = finalMarks * 5;
@@ -98,7 +94,6 @@ export default function ExamResult() {
           return (
             <div key={idx} className={`bg-slate-800 rounded-xl p-6 border ${isCorrect ? 'border-emerald-500/40' : 'border-red-500/40'}`}>
               
-              {/* Guaranteed Spaced Header using Inline Styles */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', paddingBottom: '12px', borderBottom: '1px solid rgba(51, 65, 85, 0.6)' }}>
                 <span style={{ fontSize: '14px', fontWeight: 'bold', textTransform: 'uppercase', color: '#cbd5e1' }}>
                   Question {idx + 1}

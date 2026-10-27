@@ -12,7 +12,6 @@ export default function ExamSetup() {
     difficulty: 'Medium'
   });
 
-  // Fetch chapters when the subject changes
   useEffect(() => {
     const userGrade = localStorage.getItem('grade') || '9-10';
     
@@ -57,7 +56,6 @@ export default function ExamSetup() {
 
       const data = await response.json();
       
-      // Save to localStorage as a safety backup against page reloads/refresh errors
       localStorage.setItem('active_quiz', JSON.stringify(data.quiz));
       localStorage.setItem('active_syllabus_id', formData.syllabus_id);
       localStorage.setItem('active_difficulty', formData.difficulty);
@@ -85,7 +83,6 @@ export default function ExamSetup() {
         <p className="text-slate-400 mb-8">Select your subject and target chapter to generate a precise AI exam.</p>
         
         <form onSubmit={handleGenerate} className="space-y-6">
-          {/* Subject Selection */}
           <div>
             <label className="block text-sm font-medium text-slate-300 mb-2">Target Subject</label>
             <select 
@@ -100,7 +97,6 @@ export default function ExamSetup() {
             </select>
           </div>
 
-          {/* Chapter Selection */}
           <div>
             <label className="block text-sm font-medium text-slate-300 mb-2">Target Chapter</label>
             <select 
@@ -116,7 +112,6 @@ export default function ExamSetup() {
             </select>
           </div>
 
-          {/* Difficulty Radio Selection Cards */}
           <div>
             <label className="block text-sm font-medium text-slate-300 mb-2">Difficulty Level</label>
             <div className="grid grid-cols-3 gap-4">
@@ -150,7 +145,6 @@ export default function ExamSetup() {
             )}
           </div>
 
-          {/* Submit Button */}
           <button 
             type="submit"
             disabled={isGenerating}
