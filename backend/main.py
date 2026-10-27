@@ -140,6 +140,7 @@ def get_syllabus(grade: str, subject: str):
 class QuizRequest(BaseModel):
     syllabus_id: str
     difficulty: str
+    version: str = "English"
 
 @app.post("/generate-quiz")
 def generate_quiz_route(req: QuizRequest):
@@ -164,7 +165,8 @@ def generate_quiz_route(req: QuizRequest):
             subject=subject, 
             chapter=chapter_name, 
             topic=topic_name, 
-            difficulty=req.difficulty
+            difficulty=req.difficulty,
+            version=req.version
         )
         
         verified_quiz_json = review_and_verify_quiz(

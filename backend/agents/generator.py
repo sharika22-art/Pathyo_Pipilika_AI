@@ -45,8 +45,7 @@ def generate_dynamic_visual_from_code(python_code: str) -> str | None:
         if "plt.savefig" not in cleaned_code:
             cleaned_code += f"\nplt.tight_layout()\nplt.savefig('{filepath}', dpi=150, bbox_inches='tight', facecolor='#0f172a')"
 
-        # Allow __import__ so dynamic module calls inside exec succeed safely
-        # Allow __import__ and essential built-ins like zip so dynamic module/plotting calls inside exec succeed safely
+        # Allow __import__ and essential built-ins like zip, enumerate, list, dict, set, tuple so dynamic module/plotting calls inside exec succeed safely
         safe_builtins = {
             "__import__": __import__,
             "abs": abs, "min": min, "max": max, "sum": sum, 
@@ -117,7 +116,7 @@ def retrieve_comprehensive_context(chapter: str, topic: str) -> str:
         print(f"RAG Retrieval Error: {e}")
         return "Error fetching context."
 
-def generate_quiz(grade: str, subject: str, chapter: str, topic: str, difficulty: str) -> str:
+def generate_quiz(grade: str, subject: str, chapter: str, topic: str, difficulty: str, version: str = "English") -> str:
     client = OpenAI(
         base_url="https://openrouter.ai/api/v1",
         api_key=os.environ.get("OPENAI_API_KEY") or os.environ.get("OPENROUTER_API_KEY"),
@@ -125,12 +124,20 @@ def generate_quiz(grade: str, subject: str, chapter: str, topic: str, difficulty
 
     reference_context = retrieve_comprehensive_context(chapter, topic)
 
+    # Dynamic Language Version Rule
+    language_instruction = (
+        "LANGUAGE REQUIREMENT: Generate all questions, options, and explanations in strict English (English Version)."
+        if version == "English"
+        else "LANGUAGE REQUIREMENT: Generate all questions, options, and explanations in formal Bengali (Bengali Version / বাংলা ভার্সন) strictly matching official Bangladesh NCTB textbooks."
+    )
+
     prompt = f"""
     You are a veteran Bangladesh NCTB curriculum expert and senior board question setter for Class 9-10 (SSC).
     Subject: {subject} | Chapter: {chapter}
     Generate exactly 20 high-yield, authentic board-standard multiple-choice questions tailored strictly to this subject and chapter.
     
     Target Difficulty: {difficulty}
+    {language_instruction}
     
     Reference Context (Guidebook Exam Analysis & Textbook Data):
     --------------------------------------------------
@@ -140,6 +147,7 @@ def generate_quiz(grade: str, subject: str, chapter: str, topic: str, difficulty
     🛑 STRICT SSC CLASS 9-10 SYLLABUS BOUNDARY:
     1. STRICT TEXTBOOK SCOPE: Restrict all questions, definitions, concepts, and numerical values strictly to the official Bangladesh NCTB Class 9-10 textbook and standard test papers for {subject}. 
     2. ABSOLUTE BAN ON HIGHER-SECONDARY (HSC) / COLLEGE TOPICS: Strictly forbid college-level theories, university entrance-style traps, advanced calculus, differential equations, or out-of-syllabus derivations. Every question must be fully answerable using secondary-level tools appropriate for a 15-16 year old student.
+    3. Medium/Hard difficulty DOES NOT MEAN HSC/ADMISSION LEVEL QUESTIONS. You can make the questions difficult staying inside the boundaries of SSC syllabus. ALWAYS REMEMBER that HARD QUESTION and OUT-OF-SYLLABUS-QUESTION are NEVER THE SAME.
 
     ✅ NUMERICAL & CALCULATOR GUIDELINES:
     1. CALCULATOR IS FULLY PERMITTED: Numerical or mathematical problems can feature realistic, non-integer values or scientific notation (e.g., $1.029 \times 10^{-3}$, $4.87 \times 10^{2}$) exactly as they appear in authentic guidebook exercises.

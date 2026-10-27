@@ -9,7 +9,8 @@ export default function ExamSetup() {
   const [formData, setFormData] = useState({
     subject: 'Physics',
     syllabus_id: '',
-    difficulty: 'Medium'
+    difficulty: 'Medium',
+    version: localStorage.getItem('version') || 'English' // 'English' (EV) or 'Bengali' (BV)
   });
 
   useEffect(() => {
@@ -40,6 +41,9 @@ export default function ExamSetup() {
     e.preventDefault();
     setIsGenerating(true);
     
+    // Save version preference
+    localStorage.setItem('version', formData.version);
+    
     try {
       const response = await fetch(`${import.meta.env.VITE_API_URL}/generate-quiz`, {
         method: 'POST',
@@ -48,7 +52,8 @@ export default function ExamSetup() {
         },
         body: JSON.stringify({
           syllabus_id: formData.syllabus_id,
-          difficulty: formData.difficulty
+          difficulty: formData.difficulty,
+          version: formData.version // Send version to backend
         }),
       });
 
@@ -80,9 +85,40 @@ export default function ExamSetup() {
     <div className="max-w-2xl mx-auto p-6 pt-20">
       <div className="bg-slate-800 rounded-2xl p-8 border border-slate-700 shadow-xl">
         <h1 className="text-3xl font-bold text-white mb-2">Configure Your Mission</h1>
-        <p className="text-slate-400 mb-8">Select your subject and target chapter to generate a precise AI exam.</p>
+        <p className="text-slate-400 mb-8">Select your subject, curriculum version, and chapter to generate a precise AI exam.</p>
         
         <form onSubmit={handleGenerate} className="space-y-6">
+          {/* Version Toggle (EV / BV) */}
+          <div>
+            <label className="block text-sm font-medium text-slate-300 mb-2">Curriculum Version (EV / BV)</label>
+            <div className="grid grid-cols-2 gap-4">
+              {[
+                { id: 'English', label: 'English Version (EV)' },
+                { id: 'Bengali', label: 'Bengali Version (BV - বাংলা ভার্সন)' }
+              ].map(({ id, label }) => (
+                <label 
+                  key={id}
+                  className={`flex items-center justify-center p-3 rounded-xl border-2 cursor-pointer transition-all ${
+                    formData.version === id 
+                      ? 'border-blue-500 text-white bg-blue-500/20 shadow' 
+                      : 'bg-slate-900 border-slate-700 text-slate-400 hover:border-slate-500'
+                  }`}
+                >
+                  <input 
+                    type="radio" 
+                    name="version" 
+                    value={id}
+                    checked={formData.version === id}
+                    onChange={(e) => setFormData({...formData, version: e.target.value})}
+                    className="sr-only" 
+                  />
+                  <span className="font-bold text-sm">{label}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          {/* Subject Selection */}
           <div>
             <label className="block text-sm font-medium text-slate-300 mb-2">Target Subject</label>
             <select 
@@ -97,6 +133,7 @@ export default function ExamSetup() {
             </select>
           </div>
 
+          {/* Chapter Selection */}
           <div>
             <label className="block text-sm font-medium text-slate-300 mb-2">Target Chapter</label>
             <select 
@@ -112,13 +149,14 @@ export default function ExamSetup() {
             </select>
           </div>
 
+          {/* Difficulty Selection */}
           <div>
             <label className="block text-sm font-medium text-slate-300 mb-2">Difficulty Level</label>
             <div className="grid grid-cols-3 gap-4">
               {[
-                { level: 'Easy', desc: 'Standard concept verification', color: 'border-green-500 text-green-400 bg-green-500/10' },
-                { level: 'Medium', desc: 'Board exam standard', color: 'border-yellow-500 text-yellow-400 bg-yellow-500/10' },
-                { level: 'Hard', desc: 'Mastery-level rigorous questions', color: 'border-red-500 text-red-400 bg-red-500/10' }
+                { level: 'Easy', color: 'border-green-500 text-green-400 bg-green-500/10' },
+                { level: 'Medium', color: 'border-yellow-500 text-yellow-400 bg-yellow-500/10' },
+                { level: 'Hard', color: 'border-red-500 text-red-400 bg-red-500/10' }
               ].map(({ level, color }) => (
                 <label 
                   key={level}
@@ -140,24 +178,15 @@ export default function ExamSetup() {
                 </label>
               ))}
             </div>
-            {formData.difficulty === 'Hard' && (
-              <p className="text-xs text-red-400 mt-2">🔥 Warning: Hard mode counts towards your True Syllabus Mastery.</p>
-            )}
           </div>
 
           <button 
             type="submit"
             disabled={isGenerating}
-            className="w-full mt-8 bg-blue-600 hover:bg-blue-500 disabled:bg-blue-800 text-white font-bold text-lg py-4 rounded-xl transition-all flex items-center justify-center gap-3"
+            className="w-full mt-8 bg-blue-600 hover:bg-blue-500 disabled:bg-blue-800 text-white font-bold text-lg py-4 rounded-xl transition-all flex items-center justify-center gap-3 cursor-pointer"
           >
             {isGenerating ? (
-              <>
-                <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                <span>Agents 1 & 2 Crafting & Auditing Quiz...</span>
-              </>
+              <span>Agents 1 & 2 Crafting Quiz...</span>
             ) : (
               'Initialize Exam Engine ⚡'
             )}
