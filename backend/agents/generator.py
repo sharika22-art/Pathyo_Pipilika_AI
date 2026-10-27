@@ -46,10 +46,12 @@ def generate_dynamic_visual_from_code(python_code: str) -> str | None:
             cleaned_code += f"\nplt.tight_layout()\nplt.savefig('{filepath}', dpi=150, bbox_inches='tight', facecolor='#0f172a')"
 
         # Allow __import__ so dynamic module calls inside exec succeed safely
+        # Allow __import__ and essential built-ins like zip so dynamic module/plotting calls inside exec succeed safely
         safe_builtins = {
             "__import__": __import__,
             "abs": abs, "min": min, "max": max, "sum": sum, 
-            "range": range, "round": round, "len": len, "float": float, "int": int
+            "range": range, "round": round, "len": len, "float": float, "int": int,
+            "zip": zip, "enumerate": enumerate, "list": list, "dict": dict, "set": set, "tuple": tuple
         }
 
         exec(cleaned_code, {"__builtins__": safe_builtins}, local_vars)
