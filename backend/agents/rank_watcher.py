@@ -4,7 +4,7 @@ from database.models import ExamSubmission
 def calculate_exam_score(difficulty: str, correct_answers: int, total_questions: int, tab_switches: int) -> dict:
     """Calculates final marks, points, and coins based on exact difficulty penalty rules."""
     
-    # Base marks equal correct answers (e.g., 5/10)
+    # Base marks equal correct answers
     base_marks = correct_answers
     penalty_marks = 0
 
@@ -16,10 +16,10 @@ def calculate_exam_score(difficulty: str, correct_answers: int, total_questions:
         # Hard mode auto-submits on 1st tab switch, score is NOT zeroed out unless they got 0 correct
         pass
 
-    # Ensure marks don't drop below 0 (floors at 0 as requested)
+    # Ensure marks don't drop below 0
     final_marks = max(0, base_marks - penalty_marks)
     
-    # Calculate weighted platform points (e.g., 10 points per final earned mark)
+    # Calculate weighted platform points
     points_earned = final_marks * 10
     coins_earned = final_marks * 5
 
@@ -31,7 +31,7 @@ def calculate_exam_score(difficulty: str, correct_answers: int, total_questions:
     }
 
 def process_exam_submission(submission: ExamSubmission):
-    """Logs the exam, updates user total points/coins, and triggers rank recalculation."""
+    """Logs the exam, updates user total points/coins, evaluates medium-tier mastery, and triggers rank recalculation."""
     
     score_data = calculate_exam_score(
         difficulty=submission.difficulty,
@@ -54,8 +54,8 @@ def process_exam_submission(submission: ExamSubmission):
         "tab_switches_detected": submission.tab_switches_detected
     }).execute()
 
-    # 2. Update user profile points and coins
-    user_response = db.table("users").select("total_points, coins, grade").eq("id", str(submission.user_id)).execute()
+    # 2. Update user profile points, coins, and evaluate Medium-Level Mastery status
+    user_response = db.table("users").select("total_points, coins, grade, mastery_status").eq("id", str(submission.user_id)).execute()
     
     if user_response.data:
         user_data = user_response.data[0]
@@ -63,15 +63,21 @@ def process_exam_submission(submission: ExamSubmission):
         new_coins = user_data["coins"] + score_data["coins_earned"]
         student_grade = user_data["grade"]
 
+        # UPDATED MASTERY LOGIC: True mastery is unlocked and evaluated based on Medium-level consistency (e.g., scoring >= 80% on Medium exams)
+        current_mastery = user_data.get("mastery_status", False)
+        if submission.difficulty == "Medium" and score_percentage >= 80.0:
+            current_mastery = True  # Medium-level benchmark achieved for textbook mastery!
+
         db.table("users").update({
             "total_points": new_total_points,
-            "coins": new_coins
+            "coins": new_coins,
+            "mastery_status": current_mastery
         }).eq("id", str(submission.user_id)).execute()
 
         update_grade_leaderboard(student_grade)
 
 def update_grade_leaderboard(grade: str):
-    """Recalculates leaderboard ranks for the grade."""
+    """Recalculates leaderboard ranks for the grade based on accumulated points."""
     students = db.table("users").select("id").eq("grade", grade).order("total_points", desc=True).execute()
     for index, student in enumerate(students.data):
         rank = index + 1

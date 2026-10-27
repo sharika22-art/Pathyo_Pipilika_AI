@@ -235,22 +235,30 @@ def generate_quiz_route(req: QuizRequest):
 def submit_exam(submission: ExamSubmission):
     """Endpoint hit by the frontend when a student finishes a quiz or the timer runs out."""
     try:
+        # Safeguard: Process the exam submission score & leaderboard points
         process_exam_submission(submission)
         
+        # Fetch grade and subject to update mastery
         syllabus_res = db.table("syllabus").select("grade, subject").eq("id", str(submission.syllabus_id)).execute()
         
         if syllabus_res.data:
             grade = syllabus_res.data[0]["grade"]
             subject = syllabus_res.data[0]["subject"]
             
-            if submission.difficulty == "Hard":
+            # UPDATED: Trigger true mastery calculation on Medium or Hard difficulty exams
+            if submission.difficulty in ["Medium", "Hard"]:
                 update_true_mastery(str(submission.user_id), grade, subject)
                 
         return {"status": "success", "message": "Exam logged, rank updated, and mastery calculated."}
     
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
+        print(f"CRITICAL SUBMISSION ERROR: {traceback.format_exc()}")
+        # Gracefully return a structured error response instead of crashing unhandled 500
+        raise HTTPException(
+            status_code=500, 
+            detail=f"Failed to process exam submission: {str(e)}"
+        )
+    
 
 @app.get("/leaderboard/{grade}")
 def get_leaderboard(grade: str):

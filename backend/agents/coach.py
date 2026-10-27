@@ -30,15 +30,16 @@ def call_openrouter_safely(client, model, messages, response_format=None, temper
     raise Exception("Failed to complete LLM call after multiple token adjustments.")
 
 def update_true_mastery(user_id: str, grade: str, subject: str):
-    """Calculates mastery percentage based ONLY on passing 'Hard' difficulty quizzes."""
+    """Calculates mastery percentage based on passing 'Medium' (or higher) difficulty quizzes."""
     syllabus_response = db.table("syllabus").select("id").eq("grade", grade).eq("subject", subject).execute()
     total_chapters = len(syllabus_response.data)
     
     if total_chapters == 0:
         return 0.00
         
+    # Updated to check for Medium (or Hard) mastery benchmark
     mastered_response = db.table("exam_history").select("syllabus_id").eq("user_id", user_id)\
-        .eq("difficulty", "Hard").gte("score_percentage", 80).execute()
+        .in_("difficulty", ["Medium", "Hard"]).gte("score_percentage", 80).execute()
         
     mastered_chapter_ids = {record["syllabus_id"] for record in mastered_response.data}
     
@@ -72,19 +73,19 @@ def generate_coach_message(user_id: str) -> str:
             tab_warning = f"CRITICAL: The student switched tabs {exam['tab_switches_detected']} times during their last exam. Give them a strict warning about competitive integrity."
 
     prompt = f"""
-    You are Agent 4, an AI motivational coach for a competitive gamified education platform in Bangladesh.
+    You are Agent 4, an AI motivational coach for a competitive gamified education platform in Bangladesh (SSC Class 9-10).
     
     Student Profile:
     - Name: {user['username']}
     - Grade: {user['grade']}
     - Current Leaderboard Rank: {user['current_rank']}
-    - True Syllabus Mastery: {user['mastery_percentage']}%
+    - True Syllabus Mastery (Medium-Level Standard): {user['mastery_percentage']}%
     - Last Exam: {last_exam_context}
     
     {tab_warning}
     
     Write a short, punchy, 2-3 sentence dashboard message directly to the student. 
-    If they are unranked or low mastery, encourage them to try "Hard" difficulty to boost their rank.
+    If they are unranked or low mastery, encourage them to lock in on Medium difficulty textbook quizzes to build real mastery and climb the ranks.
     If they cheated (tab switches), address it firmly but professionally. 
     Do not use generic AI greetings. Jump straight into the coaching.
     """
@@ -100,4 +101,4 @@ def generate_coach_message(user_id: str) -> str:
         return response.choices[0].message.content.strip()
     except Exception as e:
         print(f"Error generating coach message via OpenRouter: {e}")
-        return "Keep grinding! Tackle a Hard mode quiz today to boost your syllabus mastery and climb the ranks."
+        return "Keep grinding! Tackle a Medium mode quiz today to boost your syllabus mastery and climb the ranks."
