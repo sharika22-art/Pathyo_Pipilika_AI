@@ -77,7 +77,7 @@ class QuizQuestion(BaseModel):
 class QuizResult(BaseModel):
     questions: list[QuizQuestion] = Field(description="A list of exactly 20 board-standard quiz questions.")
 
-def call_openrouter_safely(client, model, messages, response_format=None, temperature=0.4, initial_max_tokens=8192):
+def call_openrouter_safely(client, model, messages, response_format=None, temperature=0.4, initial_max_tokens=20000):
     current_max_tokens = initial_max_tokens
     for _ in range(3):
         try:
@@ -166,7 +166,7 @@ def generate_quiz(grade: str, subject: str, chapter: str, topic: str, difficulty
             ],
             response_format={"type": "json_object"},
             temperature=0.3,
-            initial_max_tokens=8192
+            initial_max_tokens=20000
         )
         
         quiz_data = json.loads(response.choices[0].message.content)

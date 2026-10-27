@@ -18,7 +18,7 @@ class VerifiedQuestion(BaseModel):
 class VerifiedQuizResult(BaseModel):
     questions: list[VerifiedQuestion] = Field(description="List of exactly 20 verified, corrected questions.")
 
-def call_openrouter_safely(client, model, messages, response_format=None, temperature=0.2, initial_max_tokens=8192):
+def call_openrouter_safely(client, model, messages, response_format=None, temperature=0.2, initial_max_tokens=20000):
     current_max_tokens = initial_max_tokens
     for _ in range(3):
         try:
@@ -94,7 +94,7 @@ def review_and_verify_quiz(
             ],
             response_format={"type": "json_object"},
             temperature=0.2,
-            initial_max_tokens=8192
+            initial_max_tokens=20000
         )
         return response.choices[0].message.content
     except Exception as e:
