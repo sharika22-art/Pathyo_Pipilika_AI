@@ -24,54 +24,121 @@ export default function Leaderboard() {
   }, [userGrade]);
 
   return (
-    <div className="max-w-2xl mx-auto p-6 pt-12">
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold text-white">🏆 Class {userGrade} Leaderboard</h1>
+    <div style={{ maxWidth: '800px', margin: '0 auto', padding: '24px', paddingTop: '48px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
+        <h1 style={{ fontSize: '28px', fontWeight: 'bold', color: '#ffffff' }}>
+          🏆 Class {userGrade} Leaderboard
+        </h1>
         <button 
           onClick={() => navigate('/')}
-          className="bg-slate-800 text-slate-300 px-4 py-2 rounded-lg border border-slate-700 hover:text-white transition-all"
+          style={{
+            backgroundColor: '#1e293b',
+            color: '#cbd5e1',
+            padding: '8px 16px',
+            borderRadius: '8px',
+            border: '1px solid #475569',
+            cursor: 'pointer',
+            fontWeight: '600'
+          }}
         >
           Back to Dashboard
         </button>
       </div>
 
       {loading ? (
-        <div className="text-center text-slate-400 py-12">Loading rankings...</div>
+        <div style={{ textAlign: 'center', color: '#94a3b8', padding: '48px' }}>Loading rankings...</div>
       ) : (
-        <div className="bg-slate-800 rounded-2xl border border-slate-700 overflow-hidden shadow-xl">
-          {leaderboard.map((user, index) => {
-            const isMe = user.id === currentUserId;
-            return (
-              <div 
-                key={user.id} 
-                className={`flex items-center justify-between p-4 border-b border-slate-700/50 ${
-                  isMe ? 'bg-blue-600/20 border-blue-500/50' : 'hover:bg-slate-700/30'
-                }`}
-              >
-                <div className="flex items-center gap-4">
-                  <span className={`font-bold text-lg w-8 text-center ${
-                    index === 0 ? 'text-yellow-400' : index === 1 ? 'text-slate-300' : index === 2 ? 'text-amber-600' : 'text-slate-500'
-                  }`}>
-                    #{index + 1}
-                  </span>
-                  <div>
-                    <p className="font-bold text-white flex items-center gap-2">
-                      {user.username} {isMe && <span className="text-xs bg-blue-500 text-white px-2 py-0.5 rounded-full">You</span>}
-                    </p>
-                    <p className="text-xs text-slate-400">Mastery: {user.mastery_percentage || 0}%</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-4">
-                  <div className="text-right">
-                    <p className="font-bold text-blue-400">{user.total_points} pts</p>
-                    <p className="text-xs text-yellow-400">🪙 {user.coins} coins</p>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
+        <div style={{
+          backgroundColor: '#1e293b',
+          borderRadius: '16px',
+          border: '2px solid #475569',
+          overflow: 'hidden',
+          boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5)'
+        }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+            <thead>
+              <tr style={{ backgroundColor: '#0f172a', color: '#94a3b8', fontSize: '13px', textTransform: 'uppercase', borderBottom: '2px solid #475569' }}>
+                <th style={{ padding: '16px', textAlign: 'center', borderRight: '1px solid #475569', width: '90px' }}>Rank</th>
+                <th style={{ padding: '16px', borderRight: '1px solid #475569' }}>Student Name</th>
+                <th style={{ padding: '16px', textAlign: 'center', borderRight: '1px solid #475569', width: '110px' }}>Mastery</th>
+                <th style={{ padding: '16px', textAlign: 'center', borderRight: '1px solid #475569', width: '110px' }}>Coins</th>
+                <th style={{ padding: '16px', textAlign: 'right', width: '130px' }}>Points</th>
+              </tr>
+            </thead>
+            <tbody>
+              {leaderboard.map((user, index) => {
+                const isMe = user.id === currentUserId;
+                return (
+                  <tr 
+                    key={user.id} 
+                    style={{
+                      backgroundColor: isMe ? 'rgba(37, 99, 235, 0.25)' : 'transparent',
+                      borderBottom: '1px solid #334155',
+                      transition: 'background-color 0.2s'
+                    }}
+                  >
+                    {/* Rank */}
+                    <td style={{ padding: '16px', textAlign: 'center', borderRight: '1px solid #334155' }}>
+                      <span style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        width: '32px',
+                        height: '32px',
+                        borderRadius: '50%',
+                        fontWeight: 'bold',
+                        fontSize: '14px',
+                        backgroundColor: index === 0 ? 'rgba(234, 179, 8, 0.2)' : index === 1 ? 'rgba(203, 213, 225, 0.2)' : index === 2 ? 'rgba(217, 119, 6, 0.2)' : '#0f172a',
+                        color: index === 0 ? '#facc15' : index === 1 ? '#e2e8f0' : index === 2 ? '#f59e0b' : '#94a3b8',
+                        border: '1px solid #475569'
+                      }}>
+                        #{index + 1}
+                      </span>
+                    </td>
+
+                    {/* Student Name */}
+                    <td style={{ padding: '16px', color: '#ffffff', fontWeight: '500', borderRight: '1px solid #334155' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <span>{user.username}</span>
+                        {isMe && (
+                          <span style={{
+                            fontSize: '11px',
+                            backgroundColor: '#3b82f6',
+                            color: '#ffffff',
+                            padding: '2px 8px',
+                            borderRadius: '9999px',
+                            fontWeight: 'bold'
+                          }}>
+                            You
+                          </span>
+                        )}
+                      </div>
+                    </td>
+
+                    {/* Mastery */}
+                    <td style={{ padding: '16px', textAlign: 'center', color: '#34d399', fontWeight: '600', borderRight: '1px solid #334155' }}>
+                      {Math.round(user.mastery_percentage || 0)}%
+                    </td>
+
+                    {/* Coins */}
+                    <td style={{ padding: '16px', textAlign: 'center', color: '#facc15', fontWeight: '600', borderRight: '1px solid #334155' }}>
+                      🪙 {user.coins || 0}
+                    </td>
+
+                    {/* Points */}
+                    <td style={{ padding: '16px', textAlign: 'right', color: '#60a5fa', fontWeight: 'bold' }}>
+                      {user.total_points || 0} pts
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+
           {leaderboard.length === 0 && (
-            <div className="p-8 text-center text-slate-400">No students ranked yet. Be the first to take an exam!</div>
+            <div style={{ padding: '48px', textAlign: 'center', color: '#94a3b8' }}>
+              No students ranked yet. Be the first to take an exam!
+            </div>
           )}
         </div>
       )}
