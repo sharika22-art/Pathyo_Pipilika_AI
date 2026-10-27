@@ -28,7 +28,7 @@ app.mount("/static", StaticFiles(directory="backend/static"), name="static")
 # Configure CORS so the React frontend (running on a different port) can talk to this backend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # In production, change this to your Vercel URL
+    allow_origins=["*"], 
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -38,12 +38,10 @@ app.add_middleware(
 def read_root():
     return {"status": "Backend is active and agents are ready."}
 
-# Request model for registration
 class UserRegister(BaseModel):
     username: str
     grade: str
 
-# Request model for login
 class UserLogin(BaseModel):
     username: str
 
@@ -51,7 +49,6 @@ class UserLogin(BaseModel):
 def register_user(user: UserRegister):
     """Registers a new student after checking if the username already exists."""
     try:
-        # 1. Check if the username already exists in Supabase
         existing_user = db.table("users").select("*").eq("username", user.username).execute()
         
         if existing_user.data and len(existing_user.data) > 0:
@@ -60,7 +57,6 @@ def register_user(user: UserRegister):
                 detail="Username not available, try another one."
             )
         
-        # 2. If it doesn't exist, proceed with registration
         new_user_id = str(uuid4())
         
         profile_data = {
@@ -89,7 +85,6 @@ def register_user(user: UserRegister):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-
 @app.post("/login")
 def login_user(user: UserLogin):
     """Logs in an existing student by checking if their username exists in Supabase."""
@@ -112,7 +107,6 @@ def login_user(user: UserLogin):
         raise he
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-    
 
 @app.get("/syllabus")
 def get_syllabus(grade: str, subject: str):
@@ -143,7 +137,6 @@ def get_syllabus(grade: str, subject: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-
 class QuizRequest(BaseModel):
     syllabus_id: str
     difficulty: str
@@ -152,7 +145,6 @@ class QuizRequest(BaseModel):
 def generate_quiz_route(req: QuizRequest):
     """Triggers Agent 1 (RAG + Generation) and Agent 2 (Context-Aware Review) for a selected chapter."""
     try:
-        # 1. Fetch chapter, grade, and subject details from Supabase using syllabus_id
         syllabus_res = db.table("syllabus").select("grade, subject, chapter_name").eq("id", req.syllabus_id).execute()
         if not syllabus_res.data:
             raise HTTPException(status_code=404, detail="Syllabus chapter not found.")
@@ -162,14 +154,11 @@ def generate_quiz_route(req: QuizRequest):
         subject = chapter_info["subject"]
         chapter_name = chapter_info["chapter_name"]
         
-        # Fetch an associated sub-topic for precise RAG querying
         topics_res = db.table("chapter_topics").select("topic_name").eq("syllabus_id", req.syllabus_id).limit(1).execute()
         topic_name = topics_res.data[0]["topic_name"] if topics_res.data else chapter_name
 
-        # 2. Retrieve local RAG textbook chunks from ChromaDB
         textbook_context = retrieve_comprehensive_context(chapter_name, topic_name)
 
-        # 3. Agent 1: Generate the draft quiz JSON
         raw_quiz_json = generate_quiz(
             grade=grade, 
             subject=subject, 
@@ -178,7 +167,6 @@ def generate_quiz_route(req: QuizRequest):
             difficulty=req.difficulty
         )
         
-        # 4. Agent 2: Review and cross-check the draft against the RAG textbook context
         verified_quiz_json = review_and_verify_quiz(
             raw_quiz_json=raw_quiz_json,
             reference_context=textbook_context,
@@ -187,11 +175,7 @@ def generate_quiz_route(req: QuizRequest):
             chapter=chapter_name,
             difficulty=req.difficulty
         )
-        
-        print(f"DEBUG - Agent 2 Verified Output Type: {type(verified_quiz_json)}")
-        print(f"DEBUG - Agent 2 Verified Output Content: {verified_quiz_json}")
 
-        # Safe parsing and validation pipeline
         parsed_quiz = verified_quiz_json
         if isinstance(verified_quiz_json, str):
             clean_str = verified_quiz_json.replace("```json", "").replace("```", "").strip()
@@ -201,8 +185,6 @@ def generate_quiz_route(req: QuizRequest):
                 print(f"JSON Decode Warning: {json_err}. Fallback to empty structure.")
                 parsed_quiz = {}
 
-        # Safeguard: If Agent 2 returned an empty dict or empty structure, inject a fallback question 
-        # so the frontend never receives `{}` and breaks.
         if not parsed_quiz or (isinstance(parsed_quiz, dict) and len(parsed_quiz) == 0):
             print("WARNING: Agent 2 returned empty quiz payload. Using emergency fallback structure.")
             parsed_quiz = {
@@ -230,22 +212,18 @@ def generate_quiz_route(req: QuizRequest):
         print(f"Error in generate_quiz_route: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-
 @app.post("/submit-exam")
 def submit_exam(submission: ExamSubmission):
     """Endpoint hit by the frontend when a student finishes a quiz or the timer runs out."""
     try:
-        # Safeguard: Process the exam submission score & leaderboard points
         process_exam_submission(submission)
         
-        # Fetch grade and subject to update mastery
         syllabus_res = db.table("syllabus").select("grade, subject").eq("id", str(submission.syllabus_id)).execute()
         
         if syllabus_res.data:
             grade = syllabus_res.data[0]["grade"]
             subject = syllabus_res.data[0]["subject"]
             
-            # UPDATED: Trigger true mastery calculation on Medium or Hard difficulty exams
             if submission.difficulty in ["Medium", "Hard"]:
                 update_true_mastery(str(submission.user_id), grade, subject)
                 
@@ -253,12 +231,10 @@ def submit_exam(submission: ExamSubmission):
     
     except Exception as e:
         print(f"CRITICAL SUBMISSION ERROR: {traceback.format_exc()}")
-        # Gracefully return a structured error response instead of crashing unhandled 500
         raise HTTPException(
             status_code=500, 
             detail=f"Failed to process exam submission: {str(e)}"
         )
-    
 
 @app.get("/leaderboard/{grade}")
 def get_leaderboard(grade: str):
@@ -274,7 +250,6 @@ def get_leaderboard(grade: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-
 @app.get("/history/{user_id}")
 def get_exam_history(user_id: str):
     """Fetches past exam submissions for a given student ordered by most recent."""
@@ -287,7 +262,6 @@ def get_exam_history(user_id: str):
         return {"history": res.data}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-
 
 @app.get("/dashboard/{user_id}")
 def get_dashboard(user_id: str):
