@@ -157,7 +157,11 @@ def generate_quiz(grade: str, subject: str, chapter: str, topic: str, difficulty
     🛠️ AUTONOMOUS PYTHON VISUAL GENERATOR TOOL:
     - If a question naturally requires a diagram, graph, geometric figure, titration curve, or data plot based on board/guidebook patterns, you can generate it dynamically.
     - For such questions, provide a clean Python code snippet using `plt` (Matplotlib) and `numpy` (`np`) in the `visual_code` field. 
-    - The code must draw the *exact* visual relevant to the question (e.g., an acid-base titration curve for chemistry, a velocity-time graph for physics, or a coordinate plot/triangle for math). Style it with a dark theme background (`#0f172a`), labeled axes, and clear titles.
+    - The code must draw the exact visual relevant to the question (e.g., an acid-base titration curve for chemistry, a velocity-time graph for physics, or a coordinate plot/triangle for math). Style it with a dark theme background (`#0f172a`), labeled axes, and clear titles.
+    
+    🛑 CRITICAL RULE FOR VISUAL CODE / DIAGRAMS (DO NOT GIVE AWAY ANSWERS):
+    - NEVER write the correct answer value, the correct option text, or specific correct numerical outcomes directly into the chart labels, legends, or title of the generated image.
+    - For example, if a question asks to identify a fraction's boiling range or a specific coordinate/value, label the chart parts with generic placeholder markers (e.g., `Zone A`, `Zone B`, `Zone C`, `Region [ ? ]`, or variables like `x1`, `x2`) so that the student must actually read the question and apply their knowledge to find the correct option instead of reading the answer off the image!
     - If no visual is required for a question, set `visual_code` to `null`.
 
     📝 OPTIONS & EXPLANATIONS: Exactly 4 options per question with 1 correct answer (`is_correct: true`) and 3 plausible distractors targeting common student formula or conceptual mistakes. Ensure correct answers are distributed randomly across option positions. Provide clean, step-by-step explanatory breakdowns.
