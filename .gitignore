@@ -6,7 +6,7 @@
 *.pem
 
 # ========================
-# Python Backend
+# Python Backend & RAG / Graphs
 # ========================
 __pycache__/
 *.py[cod]
@@ -17,6 +17,7 @@ env/
 .coverage
 htmlcov/
 *.log
+backend/static/graphs/*.png
 
 # ========================
 # Node.js / React Frontend
