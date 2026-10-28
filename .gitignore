@@ -38,4 +38,4 @@ pnpm-debug.log*
 Thumbs.db
 .vscode/
 .idea/
-*.swp
+*.swpbackend/data/
