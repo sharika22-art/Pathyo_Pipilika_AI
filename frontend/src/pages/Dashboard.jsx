@@ -57,7 +57,7 @@ export default function Dashboard() {
           // If it's a base64 data URI, set directly. Otherwise fallback to prepending server URL if relative path.
           const finalUrl = data.graph_url.startsWith('data:') 
             ? data.graph_url 
-            : `${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:8000'}/${data.graph_url}`;
+            : `${import.meta.env.VITE_API_URL?.replace('/api', '') || 'https://pathyo-pipilika-ai.onrender.com'}/${data.graph_url}`;
           
           setGraphUrl(finalUrl);
         }

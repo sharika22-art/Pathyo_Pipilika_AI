@@ -327,7 +327,7 @@ export default function ActiveExam() {
         {currentQ.image_url && (
           <div style={{ marginBottom: '28px', display: 'flex', justifyContent: 'center', backgroundColor: '#050816', padding: '16px', borderRadius: '16px', border: '1px solid rgba(51, 65, 85, 0.8)' }}>
             <img 
-              src={`${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:8000'}/${currentQ.image_url}`} 
+              src={`${import.meta.env.VITE_API_URL?.replace('/api', '') || 'https://pathyo-pipilika-ai.onrender.com'}/${currentQ.image_url}`} 
               alt="Question Visual" 
               style={{ maxHeight: '260px', borderRadius: '10px', objectFit: 'contain' }}
             />
