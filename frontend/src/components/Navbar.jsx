@@ -5,15 +5,19 @@ export default function Navbar() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const [coins, setCoins] = useState(localStorage.getItem('user_coins') || '645');
-  const [points, setPoints] = useState(localStorage.getItem('user_points') || '1290');
+  // Initialize with "..." instead of a hardcoded proxy number
+  const [coins, setCoins] = useState(localStorage.getItem('user_coins') || '...');
+  const [points, setPoints] = useState(localStorage.getItem('user_points') || '...');
   const [pulseCoins, setPulseCoins] = useState(false);
   const [pulsePoints, setPulsePoints] = useState(false);
 
   useEffect(() => {
     const syncRewards = (e) => {
-      setCoins(localStorage.getItem('user_coins') || '645');
-      setPoints(localStorage.getItem('user_points') || '1290');
+      const storedCoins = localStorage.getItem('user_coins');
+      const storedPoints = localStorage.getItem('user_points');
+      
+      if (storedCoins) setCoins(storedCoins);
+      if (storedPoints) setPoints(storedPoints);
 
       if (e?.detail?.type === 'points') {
         setPulsePoints(true);
@@ -41,8 +45,10 @@ export default function Navbar() {
 
   // Re-sync whenever route changes
   useEffect(() => {
-    setCoins(localStorage.getItem('user_coins') || '645');
-    setPoints(localStorage.getItem('user_points') || '1290');
+    const storedCoins = localStorage.getItem('user_coins');
+    const storedPoints = localStorage.getItem('user_points');
+    if (storedCoins) setCoins(storedCoins);
+    if (storedPoints) setPoints(storedPoints);
   }, [location.pathname]);
 
   // Hide Navbar ONLY during active exam or onboarding
@@ -110,13 +116,13 @@ export default function Navbar() {
               border: '1px solid rgba(255, 255, 255, 0.2)',
             }}
           >
-            🚀
+            🐜
           </div>
           <div>
-            <div style={{ fontSize: '22px', fontWeight: 900, color: '#ffffff', letterSpacing: '0.5px', lineHeight: 1.1 }}>
-              Shikho <span style={{ color: '#60a5fa' }}>AI</span>
+            <div style={{ fontSize: '20px', fontWeight: 900, color: '#ffffff', letterSpacing: '0.5px', lineHeight: 1.1 }}>
+              পাঠ্য<span style={{ color: '#60a5fa' }}>পিপীলিকা</span>
             </div>
-            <div style={{ fontSize: '11px', fontWeight: 700, color: '#94a3b8', letterSpacing: '1px', textTransform: 'uppercase' }}>
+            <div style={{ fontSize: '10px', fontWeight: 700, color: '#94a3b8', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
               SSC Class 9-10 Arena
             </div>
           </div>

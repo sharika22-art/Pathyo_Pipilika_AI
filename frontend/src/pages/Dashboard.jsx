@@ -49,13 +49,17 @@ export default function Dashboard() {
         }
       });
 
-    // Fetch actual server-rendered Matplotlib progress curve graph
+    // Fetch in-memory Base64 progress curve graph from backend (zero disk usage)
     fetch(`${import.meta.env.VITE_API_URL}/user-progress-graph/${currentUserId}`)
       .then((res) => res.json())
       .then((data) => {
         if (data.graph_url) {
-          const baseServerUrl = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:8000';
-          setGraphUrl(`${baseServerUrl}/${data.graph_url}`);
+          // If it's a base64 data URI, set directly. Otherwise fallback to prepending server URL if relative path.
+          const finalUrl = data.graph_url.startsWith('data:') 
+            ? data.graph_url 
+            : `${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:8000'}/${data.graph_url}`;
+          
+          setGraphUrl(finalUrl);
         }
       })
       .catch((err) => console.error("Error loading progress graph:", err));
@@ -210,7 +214,7 @@ export default function Dashboard() {
               📈 Actual Performance Progression Curve
             </h2>
             <p style={{ margin: '4px 0 0 0', fontSize: '13px', color: '#94a3b8' }}>
-              Server-rendered Matplotlib graph tracking your mission accuracy over time
+              In-memory cached Matplotlib graph tracking your mission accuracy over time
             </p>
           </div>
           <span
@@ -237,7 +241,7 @@ export default function Dashboard() {
             padding: '20px',
             display: 'flex',
             justifyContent: 'center',
-            alignItem: 'center',
+            alignItems: 'center',
             minHeight: '260px',
           }}
         >

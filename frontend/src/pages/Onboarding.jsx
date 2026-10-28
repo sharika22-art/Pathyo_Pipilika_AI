@@ -95,7 +95,7 @@ export default function Onboarding() {
             🚀
           </div>
           <h1 style={{ margin: 0, fontSize: '30px', fontWeight: 900, color: '#ffffff', letterSpacing: '-0.5px' }}>
-            Shikho <span style={{ color: '#60a5fa' }}>AI</span> 🇧🇩
+            পাঠ্য<span style={{ color: '#60a5fa' }}>পিপীলিকা</span> 🇧🇩
           </h1>
           <p style={{ margin: '8px 0 0 0', fontSize: '14px', color: '#94a3b8', fontWeight: 500, lineHeight: 1.5 }}>
             {isLogin ? 'Log in to continue your streak and board preparation' : 'Gamified competitive learning for Bangladeshi students'}
@@ -190,9 +190,6 @@ export default function Onboarding() {
               >
                 <option value="9-10" style={{ backgroundColor: '#0f172a', color: '#ffffff' }}>
                   Class 9-10 (SSC Curriculum)
-                </option>
-                <option value="HSC" style={{ backgroundColor: '#0f172a', color: '#ffffff' }}>
-                  Class 11-12 (HSC Curriculum)
                 </option>
               </select>
             </div>
