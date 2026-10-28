@@ -1,4 +1,8 @@
 import os
+import io
+import time
+import glob
+import base64
 import random
 import matplotlib
 matplotlib.use('Agg')
@@ -38,6 +42,32 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# In-memory caches so reloading the page doesn't regenerate the graph or coach message
+# Only invalidated when the student submits a new quiz in /submit-exam
+PROGRESS_GRAPH_CACHE: dict[str, str] = {}
+COACH_MESSAGE_CACHE: dict[str, str] = {}
+
+
+def cleanup_old_quiz_visuals(max_age_seconds: int = 1800):
+    """
+    Deletes generated quiz figures (dynamic_visual_*, visual_*, progress_curve_*)
+    from backend/static/graphs/.
+    - max_age_seconds=1800 (30 mins): cleans up abandoned quiz visuals.
+    - max_age_seconds=0: immediately wipes all temporary visuals after exam submission.
+    """
+    graphs_dir = os.path.join("backend", "static", "graphs")
+    if not os.path.exists(graphs_dir):
+        return
+
+    now = time.time()
+    for filepath in glob.glob(os.path.join(graphs_dir, "*.png")):
+        try:
+            if max_age_seconds == 0 or (now - os.path.getmtime(filepath) >= max_age_seconds):
+                os.remove(filepath)
+        except Exception as e:
+            print(f"Cleanup warning for {filepath}: {e}")
+
 
 @app.get("/")
 def read_root():
@@ -151,6 +181,9 @@ class QuizRequest(BaseModel):
 def generate_quiz_route(req: QuizRequest):
     """Triggers Agent 1 (RAG + Generation) and Agent 2 (Context-Aware Review) for a selected chapter."""
     try:
+        # Clean up any leftover quiz images older than 30 minutes before generating new ones
+        cleanup_old_quiz_visuals(max_age_seconds=1800)
+
         syllabus_res = db.table("syllabus").select("grade, subject, chapter_name").eq("id", req.syllabus_id).execute()
         if not syllabus_res.data:
             raise HTTPException(status_code=404, detail="Syllabus chapter not found.")
@@ -223,6 +256,7 @@ def generate_quiz_route(req: QuizRequest):
 def submit_exam(submission: ExamSubmission):
     """Endpoint hit by the frontend when a student finishes a quiz or the timer runs out."""
     try:
+        user_id_str = str(submission.user_id)
         process_exam_submission(submission)
         
         syllabus_res = db.table("syllabus").select("grade, subject").eq("id", str(submission.syllabus_id)).execute()
@@ -232,9 +266,16 @@ def submit_exam(submission: ExamSubmission):
             subject = syllabus_res.data[0]["subject"]
             
             if submission.difficulty in ["Medium", "Hard"]:
-                update_true_mastery(str(submission.user_id), grade, subject)
+                update_true_mastery(user_id_str, grade, subject)
+
+        # 1. Invalidate cached progress graph and coach message for this user so they regenerate on next visit
+        PROGRESS_GRAPH_CACHE.pop(user_id_str, None)
+        COACH_MESSAGE_CACHE.pop(user_id_str, None)
+
+        # 2. Immediately delete the temporary quiz visuals from backend/static/graphs/ now that the quiz is done
+        cleanup_old_quiz_visuals(max_age_seconds=0)
                 
-        return {"status": "success", "message": "Exam logged, rank updated, and mastery calculated."}
+        return {"status": "success", "message": "Exam logged, rank updated, mastery calculated, and temp visuals cleaned."}
     
     except Exception as e:
         print(f"CRITICAL SUBMISSION ERROR: {traceback.format_exc()}")
@@ -279,7 +320,11 @@ def get_dashboard(user_id: str):
             raise HTTPException(status_code=404, detail="Student not found.")
             
         user_profile = user_res.data[0]
-        coach_message = generate_coach_message(user_id)
+
+        # Return cached coach message unless invalidated by a new exam submission
+        if user_id not in COACH_MESSAGE_CACHE:
+            COACH_MESSAGE_CACHE[user_id] = generate_coach_message(user_id)
+        coach_message = COACH_MESSAGE_CACHE[user_id]
         
         return {
             "profile": user_profile,
@@ -293,14 +338,18 @@ def get_dashboard(user_id: str):
 @app.get("/user-progress-graph/{user_id}")
 def generate_user_progress_graph(user_id: str):
     """
-    Dynamically fetches the student's actual exam history from Supabase,
-    computes their recent accuracy percentages, and generates a smooth,
-    glowing Matplotlib curve graph.
+    Returns the student's progression curve as an in-memory Base64 Data URI (never saved to disk).
+    Cached per user_id so page reloads do not regenerate the graph; cache is cleared on /submit-exam.
     """
     try:
+        # 1. Serve directly from RAM cache if the user hasn't taken a new quiz since last generation
+        if user_id in PROGRESS_GRAPH_CACHE:
+            return {"graph_url": PROGRESS_GRAPH_CACHE[user_id]}
+
         res = db.table("exam_history") \
-            .select("correct_answers, total_questions, difficulty") \
+            .select("correct_answers, total_questions, difficulty, completed_at") \
             .eq("user_id", user_id) \
+            .order("completed_at", desc=False) \
             .limit(8) \
             .execute()
 
@@ -337,16 +386,21 @@ def generate_user_progress_graph(user_id: str):
         for spine in ax.spines.values():
             spine.set_color('#334155')
 
-        filename = f"progress_curve_{user_id}_{random.randint(1000, 9999)}.png"
-        graphs_dir = os.path.join("backend", "static", "graphs")
-        os.makedirs(graphs_dir, exist_ok=True)
-        filepath = os.path.join(graphs_dir, filename)
-
         plt.tight_layout()
-        plt.savefig(filepath, dpi=160, facecolor=fig.get_facecolor(), edgecolor='none')
+
+        # Render PNG into an in-memory buffer instead of saving to disk
+        buf = io.BytesIO()
+        plt.savefig(buf, format='png', dpi=160, facecolor=fig.get_facecolor(), edgecolor='none')
+        buf.seek(0)
         plt.close('all')
 
-        return {"graph_url": f"static/graphs/{filename}"}
+        encoded_base64 = base64.b64encode(buf.read()).decode('utf-8')
+        data_uri = f"data:image/png;base64,{encoded_base64}"
+
+        # Cache in memory until the user completes another quiz
+        PROGRESS_GRAPH_CACHE[user_id] = data_uri
+
+        return {"graph_url": data_uri}
 
     except Exception as e:
         print(f"Progress Graph Generation Error: {e}")
@@ -397,7 +451,7 @@ def leo_chat_endpoint(req: LeoChatRequest):
         context = retrieve_comprehensive_context(req.subject, req.message)
 
         system_prompt = f"""
-        You are Leo, the official AI study companion and tutor for Shikho AI, specialized in the Bangladesh NCTB Class 9-10 (SSC) curriculum.
+        You are Leo, the official AI study companion and tutor for পাঠ্যপিপীলিকা (Pathyo Pipilika), specialized in the Bangladesh NCTB Class 9-10 (SSC) curriculum.
         Your goal is to help students master Physics, Chemistry, Biology, General Math, Higher Math, and other SSC subjects.
 
         CORE GUIDELINES:
