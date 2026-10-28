@@ -300,14 +300,31 @@ def get_leaderboard(grade: str):
 
 @app.get("/history/{user_id}")
 def get_exam_history(user_id: str):
-    """Fetches past exam submissions for a given student ordered by most recent."""
+    """Fetches past exam submissions for a given student along with subject and chapter details."""
     try:
-        res = db.table("exam_history").select("id, syllabus_id, difficulty, total_questions, correct_answers, tab_switches_detected, completed_at")\
-            .eq("user_id", user_id)\
-            .order("completed_at", desc=True)\
-            .execute()
-            
-        return {"history": res.data}
+        res = db.table("exam_history").select(
+            "id, syllabus_id, difficulty, total_questions, correct_answers, tab_switches_detected, completed_at"
+        ).eq("user_id", user_id).order("completed_at", desc=True).execute()
+
+        history_rows = res.data or []
+
+        # Collect unique syllabus_ids to fetch subject and chapter names in one query
+        syllabus_ids = list({row["syllabus_id"] for row in history_rows if row.get("syllabus_id")})
+        syllabus_map = {}
+
+        if syllabus_ids:
+            syl_res = db.table("syllabus").select("id, subject, chapter_number, chapter_name").in_("id", syllabus_ids).execute()
+            for s in (syl_res.data or []):
+                syllabus_map[s["id"]] = s
+
+        # Attach subject and chapter info to each history item
+        for row in history_rows:
+            syl_info = syllabus_map.get(row.get("syllabus_id"), {})
+            row["subject"] = syl_info.get("subject", "SSC Subject")
+            row["chapter_number"] = syl_info.get("chapter_number")
+            row["chapter_name"] = syl_info.get("chapter_name", "General Chapter")
+
+        return {"history": history_rows}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

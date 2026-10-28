@@ -31,7 +31,7 @@ export default function History() {
             📈 Exam History & Analytics
           </h1>
           <p style={{ margin: '6px 0 0 0', fontSize: '14px', color: '#94a3b8', fontWeight: 500 }}>
-            Review your past mission performance, scores, and anti-cheat telemetry.
+            Review your past mission performance, subjects, chapters, and anti-cheat telemetry.
           </p>
         </div>
         <button
@@ -61,7 +61,7 @@ export default function History() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           {history.map((exam, index) => {
             const percentage = Math.round((exam.correct_answers / exam.total_questions) * 100);
-            
+
             const dateStr = exam.completed_at && !isNaN(new Date(exam.completed_at).getTime())
               ? new Date(exam.completed_at).toLocaleDateString(undefined, {
                   month: 'short',
@@ -74,6 +74,10 @@ export default function History() {
 
             const scoreColor = percentage >= 80 ? '#34d399' : percentage >= 50 ? '#facc15' : '#f87171';
 
+            const subjectName = exam.subject || exam.syllabus?.subject || 'SSC Subject';
+            const chapterNum = exam.chapter_number || exam.syllabus?.chapter_number;
+            const chapterName = exam.chapter_name || exam.syllabus?.chapter_name || 'Chapter Assessment';
+
             return (
               <div
                 key={exam.id || index}
@@ -85,11 +89,28 @@ export default function History() {
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
+                  gap: '16px',
                   boxShadow: '0 10px 30px rgba(0, 0, 0, 0.5)',
                 }}
               >
                 <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '10px' }}>
+                  {/* Top Badges: Subject + Difficulty + Date */}
+                  <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '10px', marginBottom: '10px' }}>
+                    <span
+                      style={{
+                        backgroundColor: 'rgba(139, 92, 246, 0.2)',
+                        border: '1px solid rgba(167, 139, 250, 0.5)',
+                        color: '#c4b5fd',
+                        fontSize: '11px',
+                        padding: '4px 10px',
+                        borderRadius: '999px',
+                        fontWeight: 800,
+                        letterSpacing: '0.4px',
+                      }}
+                    >
+                      📚 {subjectName}
+                    </span>
+
                     <span
                       style={{
                         backgroundColor: 'rgba(37, 99, 235, 0.2)',
@@ -105,11 +126,24 @@ export default function History() {
                     >
                       {exam.difficulty} Mode
                     </span>
+
                     <span style={{ fontSize: '12px', color: '#94a3b8', fontWeight: 600 }}>{dateStr}</span>
                   </div>
-                  <div style={{ fontSize: '18px', fontWeight: 800, color: '#ffffff' }}>
-                    Score: {exam.correct_answers} / {exam.total_questions} ({percentage}%)
+
+                  {/* Chapter Title */}
+                  <div style={{ fontSize: '16px', fontWeight: 800, color: '#e2e8f0', marginBottom: '6px' }}>
+                    {chapterNum ? `Chapter ${chapterNum}: ${chapterName}` : chapterName}
                   </div>
+
+                  {/* Score Readout */}
+                  <div style={{ fontSize: '15px', fontWeight: 700, color: '#94a3b8' }}>
+                    Score:{' '}
+                    <span style={{ color: '#ffffff', fontWeight: 800 }}>
+                      {exam.correct_answers} / {exam.total_questions}
+                    </span>{' '}
+                    ({percentage}%)
+                  </div>
+
                   {exam.tab_switches_detected > 0 && (
                     <div style={{ fontSize: '12px', color: '#f87171', marginTop: '6px', fontWeight: 700 }}>
                       ⚠️ Tab switches recorded: {exam.tab_switches_detected}
@@ -117,7 +151,7 @@ export default function History() {
                   )}
                 </div>
 
-                <div style={{ textAlign: 'right' }}>
+                <div style={{ textAlign: 'right', flexShrink: 0 }}>
                   <span
                     style={{
                       fontSize: '26px',
