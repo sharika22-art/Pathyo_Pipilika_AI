@@ -147,7 +147,7 @@ def generate_quiz(grade: str, subject: str, chapter: str, topic: str, difficulty
     🛑 STRICT SSC CLASS 9-10 SYLLABUS BOUNDARY:
     1. STRICT TEXTBOOK SCOPE: Restrict all questions, definitions, concepts, and numerical values strictly to the official Bangladesh NCTB Class 9-10 textbook and standard test papers for {subject}. 
     2. ABSOLUTE BAN ON HIGHER-SECONDARY (HSC) / COLLEGE TOPICS: Strictly forbid college-level theories, university entrance-style traps, advanced calculus, differential equations, or out-of-syllabus derivations. Every question must be fully answerable using secondary-level tools appropriate for a 15-16 year old student.
-    3. Medium/Hard difficulty DOES NOT MEAN HSC/ADMISSION LEVEL QUESTIONS. You can make the questions difficult staying inside the boundaries of SSC syllabus. ALWAYS REMEMBER that HARD QUESTION and OUT-OF-SYLLABUS-QUESTION are NEVER THE SAME.
+    3. Medium/Hard difficulty DOES NOT MEAN HSC/ADMISSION LEVEL QUESTIONS. You can make the questions difficult staying inside the boundaries of SSC syllabus. ALWAYS REMEMBER that HARD QUESTION and OUT-OF-SYLLABUS-QUESTION are NEVER THE SAME. Also, DO NOT make the language TOO COMPLEX for the students to understand.
 
     ✅ NUMERICAL & CALCULATOR GUIDELINES:
     1. CALCULATOR IS FULLY PERMITTED: Numerical or mathematical problems can feature realistic, non-integer values or scientific notation (e.g., $1.029 \times 10^{-3}$, $4.87 \times 10^{2}$) exactly as they appear in authentic guidebook exercises.
