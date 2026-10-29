@@ -8,7 +8,35 @@ import 'katex/dist/katex.min.css';
 function renderLaTeX(text) {
   if (!text || typeof text !== 'string') return text;
 
-  const parts = text.split(/(\$\$[\s\S]*?\$\$|\$[^\$]+?\$)/g);
+  let processed = text.trim();
+
+  // If the string has no $ signs at all, check if it is raw LaTeX (like \frac{...})
+  if (!processed.includes('$')) {
+    const hasLatexCommand =
+      processed.includes('\\frac') ||
+      processed.includes('\\sqrt') ||
+      processed.includes('\\theta') ||
+      processed.includes('\\sin') ||
+      processed.includes('\\cos') ||
+      processed.includes('\\tan') ||
+      processed.includes('\\cot') ||
+      processed.includes('\\cosec') ||
+      processed.includes('\\sec') ||
+      processed.includes('\\alpha') ||
+      processed.includes('\\beta') ||
+      processed.includes('\\pi') ||
+      processed.includes('\\pm') ||
+      processed.includes('\\times') ||
+      processed.includes('\\div') ||
+      processed.includes('^') ||
+      processed.includes('_');
+
+    if (hasLatexCommand) {
+      processed = '$' + processed + '$';
+    }
+  }
+
+  const parts = processed.split(/(\$\$[\s\S]*?\$\$|\$[^\$]+?\$)/g);
   return parts.map((part, i) => {
     try {
       if (part.startsWith('$$') && part.endsWith('$$')) {
