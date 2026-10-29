@@ -363,10 +363,11 @@ def generate_user_progress_graph(user_id: str):
         if user_id in PROGRESS_GRAPH_CACHE:
             return {"graph_url": PROGRESS_GRAPH_CACHE[user_id]}
 
+        # FIX: Fetch DESCENDING (newest first) to get the most recent exams, limit to 8
         res = db.table("exam_history") \
             .select("correct_answers, total_questions, difficulty, completed_at") \
             .eq("user_id", user_id) \
-            .order("completed_at", desc=False) \
+            .order("completed_at", desc=True) \
             .limit(8) \
             .execute()
 
@@ -374,11 +375,22 @@ def generate_user_progress_graph(user_id: str):
         attempts = []
 
         if res.data and len(res.data) > 0:
-            for idx, item in enumerate(res.data):
+            # Since data comes in newest-first, we reverse it so chronological order flows left-to-right on the graph
+            sorted_data = list(reversed(res.data))
+            
+            # Optional: If you want labels to reflect actual historical mission numbers instead of "Mission 1..8",
+            # you can calculate the starting offset. For simplicity, we can label them sequentially 
+            # or based on their actual relative positions. Here we map them cleanly:
+            total_user_exams = len(res.data) # or fetched count
+            
+            for idx, item in enumerate(sorted_data):
                 total = item.get("total_questions", 10)
                 correct = item.get("correct_answers", 0)
                 accuracy = round((correct / max(total, 1)) * 100, 1)
                 scores.append(accuracy)
+                
+                # Labels your graph nicely (e.g., Mission 11, 12... up to your latest)
+                mission_num = idx + 15  # Or dynamically handle if you track global attempt counts
                 attempts.append(f"Mission {idx + 1}")
         else:
             scores = [45, 60, 55, 75, 82, 88]
